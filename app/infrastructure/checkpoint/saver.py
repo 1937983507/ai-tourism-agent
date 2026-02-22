@@ -53,15 +53,18 @@ async def ainit_checkpointer():
     """在异步上下文中初始化 checkpointer。"""
     global _checkpointer, _sqlite_async_conn
     if _checkpointer is not None:
+        logger.debug(f"Checkpointer 已初始化，类型: {type(_checkpointer).__name__}")
         return _checkpointer
 
     checkpoint_type = settings.checkpoint_type.lower()
+    logger.info(f"初始化 Checkpointer，类型: {checkpoint_type}")
+    
     if checkpoint_type == "sqlite":
         import aiosqlite
         from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
         db_path = settings.sqlite_db_path
         os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else ".", exist_ok=True)
-        logger.info(f"使用 SQLite Checkpoint，路径: {db_path}")
+        logger.info(f"使用 SQLite Checkpoint，路径: {db_path} (绝对路径: {os.path.abspath(db_path)})")
         # 避免使用 from_conn_string（其内部会创建 aiosqlite conn，但当前 aiosqlite 版本没有 is_alive，
         # 而 langgraph 会调用 conn.is_alive() 导致 500）。
         conn = await aiosqlite.connect(db_path)
@@ -70,6 +73,7 @@ async def ainit_checkpointer():
             conn.is_alive = lambda: True  # type: ignore[attr-defined]
         _sqlite_async_conn = conn
         _checkpointer = AsyncSqliteSaver(conn)
+        logger.info(f"SQLite Checkpointer 初始化完成")
         return _checkpointer
     elif checkpoint_type == "memory":
         logger.info("使用内存 Checkpoint（默认）")

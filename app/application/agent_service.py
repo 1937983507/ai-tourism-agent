@@ -30,6 +30,10 @@ class AgentService:
         }
         
         # 构建初始状态
+        # 注意：对于使用 checkpoint 的图，LangGraph 会：
+        # 1. 先从 checkpoint 中恢复之前的状态（如果有）
+        # 2. 将 initial_state 中的新消息追加到历史消息中（MessagesState 的 reducer 是追加）
+        # 3. 其他字段（如 session_id, user_id）如果 checkpoint 中已存在，会被保留
         initial_state: Dict[str, Any] = {
             "session_id": session_id,
             "user_id": user_id,
@@ -37,6 +41,8 @@ class AgentService:
                 HumanMessage(content=message)
             ]
         }
+        
+        logger.info(f"调用 graph.astream，thread_id: {session_id}, 新消息: {message[:50]}...")
         
         try:
             last_message_count = 0

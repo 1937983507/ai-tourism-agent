@@ -44,7 +44,7 @@ async def list_tools():
 @router.post("/chat-stream")
 async def chat_stream(request: ChatRequest):
     """流式对话接口（SSE）"""
-    logger.info(f"收到流式对话请求，session_id: {request.session_id}")
+    logger.info(f"[CHAT-STREAM] 收到流式对话请求，session_id: {request.session_id}, user_id: {request.user_id}, message: {request.message[:100]}")
     
     agent_service = get_agent_service()
     model_name = settings.openai_model_name
@@ -80,7 +80,7 @@ async def chat_stream(request: ChatRequest):
 @router.post("/chat")
 async def chat(request: ChatRequest):
     """非流式对话接口（用于测试）"""
-    logger.info(f"收到对话请求，session_id: {request.session_id}")
+    logger.info(f"[CHAT] 收到对话请求，session_id: {request.session_id}, user_id: {request.user_id}, message: {request.message[:100]}")
     
     agent_service = get_agent_service()
     result = await agent_service.chat(
