@@ -19,7 +19,8 @@ class Settings(BaseSettings):
     openai_max_output_tokens: int = 800
     
     # Checkpoint 配置
-    checkpoint_type: str = "memory"  # memory, sqlite 或 postgres
+    # memory: 仅内存，重启后丢失；sqlite: 持久化到本地文件，重启后可恢复
+    checkpoint_type: str = "sqlite"  # memory, sqlite 或 postgres
     sqlite_db_path: str = "./checkpoints.db"
     postgres_conn_string: Optional[str] = None
     
