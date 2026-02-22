@@ -1,7 +1,9 @@
 """FastAPI 应用入口"""
 import logging
-from fastapi import FastAPI
+import time
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from app.api.routes import router
 from app.config import settings
 from app.graph.workflow import init_agent_graph
@@ -21,6 +23,46 @@ app = FastAPI(
     description="基于 LangGraph 的智能旅游规划 Agent 服务",
     version="1.0.0"
 )
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """请求日志中间件，记录所有 HTTP 请求"""
+    
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        
+        # 记录请求信息
+        logger.info(
+            f"[REQUEST] {request.method} {request.url.path} | "
+            f"Client: {request.client.host if request.client else 'unknown'} | "
+            f"Query: {dict(request.query_params)}"
+        )
+        
+        try:
+            response = await call_next(request)
+            process_time = time.time() - start_time
+            
+            # 记录响应信息
+            logger.info(
+                f"[RESPONSE] {request.method} {request.url.path} | "
+                f"Status: {response.status_code} | "
+                f"Time: {process_time:.3f}s"
+            )
+            
+            return response
+        except Exception as e:
+            process_time = time.time() - start_time
+            logger.error(
+                f"[ERROR] {request.method} {request.url.path} | "
+                f"Exception: {str(e)} | "
+                f"Time: {process_time:.3f}s",
+                exc_info=True
+            )
+            raise
+
+
+# 添加请求日志中间件（在 CORS 之前）
+app.add_middleware(RequestLoggingMiddleware)
 
 # CORS 配置
 app.add_middleware(
