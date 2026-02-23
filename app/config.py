@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     openai_api_key: str
     openai_base_url: str = "https://api.chatanywhere.org"
     openai_model_name: str = "gpt-4o-mini"
-    openai_max_output_tokens: int = 800
+    openai_max_output_tokens: int = 4000
     
     # Checkpoint 配置
     # memory: 仅内存，重启后丢失；sqlite: 持久化到本地文件，重启后可恢复

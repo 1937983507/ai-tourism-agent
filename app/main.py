@@ -83,6 +83,7 @@ async def startup():
     logger.info("AI-Tourism Agent Service 启动中...")
     logger.info(f"Checkpoint 类型: {settings.checkpoint_type}")
     logger.info(f"OpenAI 模型: {settings.openai_model_name}")
+    logger.info(f"OpenAI max_output_tokens: {settings.openai_max_output_tokens}")
     # 预初始化图与 checkpointer，避免首次请求时在运行中的 event loop 里做同步初始化导致报错
     await init_agent_graph()
     logger.info("服务启动完成")
