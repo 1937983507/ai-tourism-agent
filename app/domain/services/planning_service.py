@@ -96,21 +96,53 @@ class PlanningService:
                 user_message=user_message
             )
             
-            # 调用 LLM（流式调用，收集完整响应）
+            # 调用 LLM（流式调用）
+            # agent_service.py 中的 astream_events 会实时捕获这个流式调用过程中的每个 chunk
             messages = [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_prompt)
             ]
             
-            # 流式调用并收集完整内容
+            # 流式调用并收集完整内容（用于最终返回和状态更新）
             route_plan_parts = []
-            for chunk in llm.stream(messages):
-                if hasattr(chunk, 'content') and chunk.content:
-                    route_plan_parts.append(chunk.content)
+            chunk_count = 0
+            total_chunk_length = 0
+            last_finish_reason = None  # 记录最后一个chunk的finish_reason
             
-            route_plan = "".join(route_plan_parts)
+            try:
+                for chunk in llm.stream(messages):
+                    # 检查finish_reason（如果chunk有该属性）
+                    if hasattr(chunk, 'response_metadata'):
+                        metadata = chunk.response_metadata
+                        if metadata and 'finish_reason' in metadata:
+                            last_finish_reason = metadata['finish_reason']
+                            if last_finish_reason == 'length':
+                                logger.warning(f"[PLANNING] ⚠️ 检测到finish_reason='length'，输出因token限制被截断！")
+                            elif last_finish_reason:
+                                logger.info(f"[PLANNING] finish_reason: {last_finish_reason}")
+                    
+                    if hasattr(chunk, 'content') and chunk.content:
+                        content = chunk.content
+                        route_plan_parts.append(content)
+                        chunk_count += 1
+                        chunk_length = len(content)
+                        total_chunk_length += chunk_length
+                
+                route_plan = "".join(route_plan_parts)
+                final_length = len(route_plan)
+                
+                logger.info(f"[PLANNING] LLM流式调用完成 - 总chunks: {chunk_count}, 最终内容长度: {final_length}, finish_reason: {last_finish_reason}")
+                
+            except Exception as stream_error:
+                logger.error(f"[PLANNING] LLM流式调用异常: {stream_error}", exc_info=True)
+                # 即使流式调用失败，也尝试返回已收集的内容
+                if route_plan_parts:
+                    route_plan = "".join(route_plan_parts)
+                    logger.warning(f"[PLANNING] 流式调用异常，但已收集部分内容，长度: {len(route_plan)}")
+                else:
+                    raise
             
-            logger.info("路线规划完成")
+            logger.info(f"[PLANNING] 路线规划完成，最终内容长度: {len(route_plan)}")
             return {
                 "route_plan": route_plan,
                 "messages": [AIMessage(content=route_plan)]
