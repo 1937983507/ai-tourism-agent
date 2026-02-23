@@ -69,8 +69,8 @@ async def chat_stream(request: ChatRequest):
             yield f"data: {end_data}\n\n"
         
         except Exception as e:
-            logger.error(f"流式对话异常: {e}", exc_info=True)
-            error_msg = "服务暂时不可用，请稍后重试"
+            logger.error(f"[SSE] 流式对话异常: {e}", exc_info=True)
+            error_msg = f"抱歉，我暂时无法回复您的消息。错误: {str(e)[:100]}"
             error_data = f'{{"choices":[{{"index":0,"text":"{error_msg}","finish_reason":"stop","model":"{model_name}"}}]}}'
             yield f"data: {error_data}\n\n"
     
