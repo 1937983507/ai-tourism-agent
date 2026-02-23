@@ -20,97 +20,90 @@ class AgentService:
         message: str
     ) -> AsyncIterator[str]:
         """流式对话"""
-        logger.info(f"开始流式对话，session_id: {session_id}, user_id: {user_id}")
-        
-        # 构建配置（thread_id 对应 session_id）
-        config = {
-            "configurable": {
-                "thread_id": session_id
-            }
-        }
-        
-        # 构建初始状态
-        # 注意：对于使用 checkpoint 的图，LangGraph 会：
-        # 1. 先从 checkpoint 中恢复之前的状态（如果有）
-        # 2. 将 initial_state 中的新消息追加到历史消息中（MessagesState 的 reducer 是追加）
-        # 3. 其他字段（如 session_id, user_id）如果 checkpoint 中已存在，会被保留
+        config = {"configurable": {"thread_id": session_id}}
         initial_state: Dict[str, Any] = {
             "session_id": session_id,
             "user_id": user_id,
-            "messages": [
-                HumanMessage(content=message)
-            ]
+            "messages": [HumanMessage(content=message)]
         }
         
-        logger.info(f"调用 graph.astream，thread_id: {session_id}, 新消息: {message[:50]}...")
+        logger.info(f"调用 graph.astream_events，thread_id: {session_id}, 新消息: {message[:50]}...")
         
         try:
-            last_message_count = 0
+            from langchain_core.messages import AIMessage
             accumulated_content = ""
-            
-            # 流式调用图
-            async for event in self.graph.astream(initial_state, config=config):
-                # 处理事件流
-                # event 是一个字典，键是节点名，值可能是状态字典或 None
-                if not isinstance(event, dict):
-                    continue
-                    
-                for node_name, node_state in event.items():
-                    logger.debug(f"处理节点事件: {node_name}, node_state类型: {type(node_state)}")
-                    
-                    # 检查 node_state 是否为 None
-                    if node_state is None:
-                        logger.debug(f"节点 {node_name} 的状态为 None，跳过")
-                        continue
-                    
-                    # 确保 node_state 是字典类型
-                    if not isinstance(node_state, dict):
-                        logger.warning(f"节点 {node_name} 的状态不是字典类型: {type(node_state)}")
-                        continue
-                    
-                    # 检查是否有错误
-                    if node_state.get("error"):
-                        error_msg = node_state.get("error", "处理过程中出现错误")
-                        yield f"\n错误: {error_msg}"
+            last_message_count = 0
+            in_plan_route = False
+            plan_route_accumulated = ""
+
+            async for event in self.graph.astream_events(
+                initial_state, config=config, version="v2"
+            ):
+                event_type = event.get("event")
+                event_name = event.get("name", "")
+                # logger.info(f"event_type: {event_type}, event_name: {event_name}")
+
+                # 标记进入 plan_route 节点，后续只捕获该节点的 LLM 流式输出
+                if event_type == "on_chain_start" and event_name == "plan_route":
+                    in_plan_route = True
+                    plan_route_accumulated = ""
+
+                # 节点结束：退出 plan_route 标记，或图结束时提前返回
+                if event_type == "on_chain_end":
+                    if event_name == "plan_route":
+                        in_plan_route = False
+                    elif event_name == "__end__":
                         return
-                    
-                    # 获取消息列表
-                    messages = node_state.get("messages", [])
-                    if messages and len(messages) > last_message_count:
-                        # 获取新增的消息
-                        new_messages = messages[last_message_count:]
-                        last_message_count = len(messages)
-                        
-                        # 处理新增消息
-                        for msg in new_messages:
-                            # 只处理 AI 消息
-                            from langchain_core.messages import AIMessage
-                            if isinstance(msg, AIMessage) and hasattr(msg, 'content'):
-                                content = msg.content
-                                if isinstance(content, str) and content:
-                                    # 计算新增内容（增量输出）
-                                    if len(content) > len(accumulated_content):
-                                        new_content = content[len(accumulated_content):]
-                                        accumulated_content = content
-                                        # 流式返回新增内容
-                                        for char in new_content:
-                                            yield char
-                    
-                    # 如果到达结束节点或格式化输出节点，确保输出完整内容
-                    if node_name == "format_output" or node_name == "__end__":
-                        # 确保所有内容都已输出
-                        route_plan = node_state.get("route_plan")
-                        if route_plan and len(route_plan) > len(accumulated_content):
-                            remaining = route_plan[len(accumulated_content):]
-                            for char in remaining:
-                                yield char
-                            accumulated_content = route_plan
-                        if node_name == "__end__":
+
+                # 实时捕获 plan_route 节点内 LLM 的流式 token，逐块 yield 给前端
+                if event_type == "on_chat_model_stream" and in_plan_route:
+                    chunk = event.get("data", {}).get("chunk")
+                    if chunk and hasattr(chunk, "content") and chunk.content:
+                        content = chunk.content
+                        yield content
+                        plan_route_accumulated += content
+                        accumulated_content += content
+
+                # 节点结束时处理输出：错误、plan_route 补全、其他节点的 AI 消息
+                if event_type == "on_chain_end":
+                    output = event.get("data", {}).get("output")
+                    if output and isinstance(output, dict):
+                        if output.get("error"):
+                            yield f"\n错误: {output.get('error', '处理过程中出现错误')}"
                             return
+
+                        # plan_route 流式可能不完整，用完整 route_plan 补全未输出的部分
+                        if event_name == "plan_route":
+                            route_plan = output.get("route_plan")
+                            if route_plan and isinstance(route_plan, str):
+                                accumulated_length = len(plan_route_accumulated)
+                                if len(route_plan) > accumulated_length:
+                                    for char in route_plan[accumulated_length:]:
+                                        yield char
+                                    plan_route_accumulated = route_plan
+                                    accumulated_content = route_plan
+
+                        # 非 plan_route 节点（如 conversation_guidance 等）的 AI 回复，增量 yield
+                        messages = output.get("messages", [])
+                        if messages and len(messages) > last_message_count:
+                            new_messages = messages[last_message_count:]
+                            last_message_count = len(messages)
+                            if event_name != "plan_route":
+                                for msg in new_messages:
+                                    if isinstance(msg, AIMessage) and hasattr(msg, "content"):
+                                        content = msg.content
+                                        if isinstance(content, str) and content and content not in accumulated_content:
+                                            if len(content) > len(accumulated_content):
+                                                new_content = content[len(accumulated_content):]
+                                                accumulated_content = content
+                                                for char in new_content:
+                                                    yield char
+
         except Exception as e:
             logger.error(f"流式对话异常: {e}", exc_info=True)
-            yield f"\n错误: 服务暂时不可用，请稍后重试"
+            yield "\n错误: 服务暂时不可用，请稍后重试"
     
+
     async def chat(
         self,
         session_id: str,
@@ -118,20 +111,11 @@ class AgentService:
         message: str
     ) -> Dict[str, Any]:
         """非流式对话（用于测试）"""
-        logger.info(f"开始对话，session_id: {session_id}, user_id: {user_id}")
-        
-        config = {
-            "configurable": {
-                "thread_id": session_id
-            }
-        }
-        
+        config = {"configurable": {"thread_id": session_id}}
         initial_state: Dict[str, Any] = {
             "session_id": session_id,
             "user_id": user_id,
-            "messages": [
-                HumanMessage(content=message)
-            ]
+            "messages": [HumanMessage(content=message)]
         }
         
         try:
