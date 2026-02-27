@@ -2,9 +2,13 @@
 import logging
 import json
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.infrastructure.llm.factory import LLMFactory
+from app.domain.services.simple_intent_extractor import SimpleIntentExtractor
+
+if TYPE_CHECKING:
+    from app.graph.state import AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +33,25 @@ class LLMIntentService:
             return """你是一位专业的意图识别助手。请分析用户输入，识别意图并提取关键信息。
 输出 JSON 格式：{"intent_type": "tourism" | "non_tourism" | "tourism_need_guidance", "city_name": "城市名或null", "day_count": 数字或null, "confidence": 0.0-1.0}"""
     
-    def recognize_intent(self, user_input: str) -> Dict[str, Any]:
+    def _get_last_user_input(self, state: "AgentState") -> str:
+        """从 state 中提取最后一条用户输入"""
+        messages = state.get("messages", [])
+        if not messages:
+            return ""
+        
+        # 从后往前找最后一条用户消息
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                return msg.content if hasattr(msg, 'content') else str(msg)
+        
+        return ""
+    
+    def recognize_intent(self, state: "AgentState") -> Dict[str, Any]:
         """
         使用 LLM 识别用户意图并提取信息
         
         Args:
-            user_input: 用户输入内容
+            state: Agent 状态对象
             
         Returns:
             包含意图识别结果的字典：
@@ -44,8 +61,45 @@ class LLMIntentService:
             - confidence: 置信度
         """
         try:
+            # 从 state 中提取信息
+            user_input = self._get_last_user_input(state)
+            conversation_history = state.get("messages", [])
+            current_city = state.get("city_name")
+            current_day_count = state.get("day_count")
+            in_guidance_mode = state.get("in_guidance_mode", False)
+            
             # 加载系统提示词
             system_prompt = self._load_system_prompt()
+            
+            # 构建上下文信息
+            context_parts = []
+            if in_guidance_mode:
+                context_parts.append("注意：当前处于旅游规划引导模式，用户可能在回答引导问题。")
+            if current_city:
+                context_parts.append(f"已知城市：{current_city}")
+            if current_day_count:
+                context_parts.append(f"已知天数：{current_day_count}")
+            
+            # 构建对话历史上下文
+            history_context = ""
+            if conversation_history:
+                history_messages = []
+                for msg in conversation_history[-4:]:  # 只取最近4条消息作为上下文
+                    if hasattr(msg, 'content'):
+                        role = "用户" if isinstance(msg, HumanMessage) else "助手"
+                        history_messages.append(f"{role}：{msg.content}")
+                if history_messages:
+                    history_context = "\n对话历史：\n" + "\n".join(history_messages)
+            
+            context_str = "\n".join(context_parts) if context_parts else ""
+            
+            # 构建用户提示
+            user_prompt = f"用户输入：{user_input}"
+            if context_str:
+                user_prompt += f"\n\n上下文信息：\n{context_str}"
+            if history_context:
+                user_prompt += history_context
+            user_prompt += "\n\n请分析用户意图并提取信息。如果处于引导模式，用户的简短回答（如'5天'、'3天'等）应该被视为对引导问题的回答，属于旅游意图。"
             
             # 创建 LLM 实例（使用 JSON 格式）
             llm = LLMFactory.create_llm(
@@ -57,7 +111,7 @@ class LLMIntentService:
             # 构建消息
             messages = [
                 SystemMessage(content=system_prompt),
-                HumanMessage(content=f"用户输入：{user_input}\n\n请分析用户意图并提取信息。")
+                HumanMessage(content=user_prompt)
             ]
             
             # 调用 LLM
@@ -101,19 +155,27 @@ class LLMIntentService:
         except Exception as e:
             logger.error(f"意图识别异常: {e}", exc_info=True)
             # 降级到简单提取
+            user_input = self._get_last_user_input(state)
             return self._fallback_extraction(user_input)
     
     def _fallback_extraction(self, user_input: str) -> Dict[str, Any]:
-        """降级提取方法（当 LLM 调用失败时使用）"""
-        # 简单的关键词匹配
+        """降级提取方法（当 LLM 调用失败时使用规则匹配）"""
+        # 使用统一的简单意图提取器
+        city, day_count = SimpleIntentExtractor.extract_from_input(user_input)
+        
+        # 简单的关键词匹配判断是否为旅游意图
         tourism_keywords = ["旅游", "旅行", "游玩", "景点", "攻略", "行程", "路线"]
         is_tourism = any(keyword in user_input for keyword in tourism_keywords)
+        
+        # 如果提取到城市或天数，也认为是旅游意图
+        if city or day_count:
+            is_tourism = True
         
         if is_tourism:
             return {
                 "intent_type": "tourism_need_guidance",
-                "city_name": None,
-                "day_count": None,
+                "city_name": city,
+                "day_count": day_count,
                 "confidence": 0.5
             }
         else:

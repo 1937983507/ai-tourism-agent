@@ -1,10 +1,13 @@
 """路线规划服务"""
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from app.infrastructure.llm.factory import LLMFactory
 from app.config import settings
+
+if TYPE_CHECKING:
+    from app.graph.state import AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -58,24 +61,35 @@ class PlanningService:
 直接输出完整的旅游建议，不要显式描述执行步骤。
 """
     
-    def plan_route(
-        self,
-        weather_info: Optional[str],
-        poi_info: Optional[str],
-        user_message: str
-    ) -> Dict[str, Any]:
+    def _get_last_user_input(self, state: "AgentState") -> str:
+        """从 state 中提取最后一条用户输入"""
+        messages = state.get("messages", [])
+        if not messages:
+            return ""
+        
+        # 从后往前找最后一条用户消息
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                return msg.content if hasattr(msg, 'content') else str(msg)
+        
+        return ""
+    
+    def plan_route(self, state: "AgentState") -> Dict[str, Any]:
         """
         生成旅游路线规划
         
         Args:
-            weather_info: 天气信息
-            poi_info: 景点信息
-            user_message: 用户原始需求
+            state: Agent 状态对象
             
         Returns:
             包含路线规划的字典，如果失败则包含 error 字段
         """
         try:
+            # 从 state 中提取信息
+            weather_info = state.get("weather_data")
+            poi_info = state.get("poi_data")
+            user_message = self._get_last_user_input(state)
+            
             # 加载提示词
             system_prompt = self._load_system_prompt()
             user_prompt_template = self._load_user_prompt_template()

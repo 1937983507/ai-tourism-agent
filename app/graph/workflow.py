@@ -4,8 +4,7 @@ from langgraph.graph import StateGraph, END
 from app.graph.state import AgentState
 from app.graph.nodes import (
     validate_input_node,
-    intent_understanding_node,  # 保留原有节点（规则匹配）
-    llm_intent_recognition_node,  # 新的 LLM 意图识别节点
+    llm_intent_recognition_node,  # LLM 意图识别节点
     conversation_guidance_node,   # 对话引导节点
     general_response_node,        # 通用回复节点
     parallel_trigger_node,        # 并行触发节点

@@ -2,7 +2,6 @@
 import logging
 from typing import Dict, Any
 from app.graph.state import AgentState
-from langchain_core.messages import HumanMessage
 from app.domain.services.general_response_service import GeneralResponseService
 
 logger = logging.getLogger(__name__)
@@ -18,20 +17,8 @@ def general_response_node(state: AgentState) -> dict:
     result = {}
     
     try:
-        # 获取用户输入和对话历史
-        user_input = ""
-        conversation_history = []
-        if state.get("messages"):
-            for msg in state["messages"]:
-                conversation_history.append(msg)
-                if isinstance(msg, HumanMessage):
-                    user_input = msg.content if hasattr(msg, 'content') else str(msg)
-        
-        # 调用通用回复服务
-        response_result = _general_response_service.generate_response(
-            user_input=user_input,
-            conversation_history=conversation_history
-        )
+        # 直接调用 LLM 进行回复
+        response_result = _general_response_service.generate_response(state)
         
         # 添加 AI 回复消息
         if response_result.get("messages"):
