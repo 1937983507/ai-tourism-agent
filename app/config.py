@@ -16,10 +16,11 @@ class Settings(BaseSettings):
     openai_api_key: str
     openai_base_url: str = "https://api.chatanywhere.org"
     openai_model_name: str = "gpt-4o-mini"
-    openai_max_output_tokens: int = 800
+    openai_max_output_tokens: int = 4000
     
     # Checkpoint 配置
-    checkpoint_type: str = "memory"  # memory, sqlite 或 postgres
+    # memory: 仅内存，重启后丢失；sqlite: 持久化到本地文件，重启后可恢复
+    checkpoint_type: str = "sqlite"  # memory, sqlite 或 postgres
     sqlite_db_path: str = "./checkpoints.db"
     postgres_conn_string: Optional[str] = None
     
@@ -32,14 +33,14 @@ class Settings(BaseSettings):
     agent_host: str = "0.0.0.0"
     log_level: str = "INFO"
     
+    # 日志配置
+    log_dir: str = "./logs"  # 日志目录
+    log_retention_days: int = 7  # 日志保留天数
+    log_rotation: str = "00:00"  # 日志轮转时间（每天午夜轮转，确保一天一个文件）
+    log_encoding: str = "utf-8"  # 日志文件编码
+    
     # 天气 API 配置
     openweather_api_key: Optional[str] = None
-    
-    # 提示词路径（已移动到 app/prompt/ 目录，保留配置项以便兼容）
-    system_prompt_path: str = "app/prompt/tour-route-planning-system-prompt.txt"
-    route_planning_user_prompt_path: str = "app/prompt/route-planning-user-prompt.txt"
-    json_format_system_prompt_path: str = "app/prompt/json-format-system-prompt.txt"
-    json_format_user_prompt_path: str = "app/prompt/json-format-user-prompt.txt"
     
     class Config:
         env_file = ".env"

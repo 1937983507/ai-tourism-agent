@@ -1,10 +1,8 @@
 """输入验证节点"""
-import logging
 from typing import Dict, Any
+from loguru import logger
 from app.graph.state import AgentState
 from app.domain.services.validation_service import ValidationService
-
-logger = logging.getLogger(__name__)
 
 # 创建服务实例
 _validation_service = ValidationService()

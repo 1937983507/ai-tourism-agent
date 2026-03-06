@@ -1,11 +1,9 @@
 """景点搜索工具"""
-import logging
 import httpx
 from typing import Optional
+from loguru import logger
 from langchain.tools import tool
 from app.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 @tool

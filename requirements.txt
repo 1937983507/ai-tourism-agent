@@ -25,4 +25,5 @@ python-dotenv>=1.0.0
 
 # 日志
 structlog>=24.1.0
+loguru>=0.7.0
 

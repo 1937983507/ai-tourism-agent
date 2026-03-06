@@ -1,11 +1,9 @@
 """工具管理器"""
-import logging
 from typing import List
+from loguru import logger
 from langchain.tools import BaseTool
 from app.domain.tools.weather import weather_forecast
 from app.domain.tools.poi import poi_search
-
-logger = logging.getLogger(__name__)
 
 
 def get_tools() -> List[BaseTool]:

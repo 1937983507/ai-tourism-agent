@@ -1,10 +1,8 @@
 """LLM 工厂类 - 统一管理 LLM 实例创建"""
-import logging
 from typing import Optional
+from loguru import logger
 from langchain_openai import ChatOpenAI
 from app.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 class LLMFactory:

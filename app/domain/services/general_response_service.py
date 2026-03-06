@@ -1,11 +1,12 @@
 """通用回复服务"""
-import logging
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, TYPE_CHECKING
+from loguru import logger
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from app.infrastructure.llm.factory import LLMFactory
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from app.graph.state import AgentState
 
 
 class GeneralResponseService:
@@ -13,31 +14,39 @@ class GeneralResponseService:
     
     def __init__(self):
         """初始化通用回复服务"""
-        # 获取项目根目录
-        current_dir = os.path.dirname(__file__)
-        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+        file_path = os.path.abspath(__file__)
+        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(file_path)))
         prompt_dir = os.path.join(app_dir, "prompt")
+        # 通用回复服务，用于处理非旅游相关的问题或需求
         self.system_prompt_path = os.path.join(prompt_dir, "general-response-system-prompt.txt")
     
     def _load_system_prompt(self) -> str:
         """加载系统提示词"""
-        if os.path.exists(self.system_prompt_path):
-            with open(self.system_prompt_path, 'r', encoding='utf-8') as f:
+        try:
+            with open(self.system_prompt_path, "r", encoding="utf-8") as f:
                 return f.read()
-        else:
-            return """你是一位友好的AI助手。请理解用户的问题或需求，提供友好、有帮助的回答。"""
+        except FileNotFoundError:
+            raise FileNotFoundError(f"系统提示词文件不存在: {self.system_prompt_path}")
     
-    def generate_response(
-        self,
-        user_input: str,
-        conversation_history: List = None
-    ) -> Dict[str, Any]:
+    def _get_last_user_input(self, state: "AgentState") -> str:
+        """从 state 中提取最后一条用户输入"""
+        messages = state.get("messages", [])
+        if not messages:
+            return ""
+        
+        # 从后往前找最后一条用户消息
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                return msg.content if hasattr(msg, 'content') else str(msg)
+        
+        return ""
+    
+    def generate_response(self, state: "AgentState") -> Dict[str, Any]:
         """
         生成通用回复
         
         Args:
-            user_input: 用户输入
-            conversation_history: 对话历史（可选）
+            state: Agent 状态对象
             
         Returns:
             包含回复的字典：
@@ -45,6 +54,10 @@ class GeneralResponseService:
             - messages: 包含回复消息的列表
         """
         try:
+            # 从 state 中提取信息
+            user_input = self._get_last_user_input(state)
+            conversation_history = state.get("messages", [])
+            
             # 加载系统提示词
             system_prompt = self._load_system_prompt()
             

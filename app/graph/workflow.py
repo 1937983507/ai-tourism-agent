@@ -1,11 +1,10 @@
 """LangGraph 工作流定义"""
-import logging
 from langgraph.graph import StateGraph, END
+from loguru import logger
 from app.graph.state import AgentState
 from app.graph.nodes import (
     validate_input_node,
-    intent_understanding_node,  # 保留原有节点（规则匹配）
-    llm_intent_recognition_node,  # 新的 LLM 意图识别节点
+    llm_intent_recognition_node,  # LLM 意图识别节点
     conversation_guidance_node,   # 对话引导节点
     general_response_node,        # 通用回复节点
     parallel_trigger_node,        # 并行触发节点
@@ -21,7 +20,16 @@ from app.graph.nodes import (
 from app.infrastructure.checkpoint.saver import create_checkpointer
 from app.infrastructure.checkpoint.saver import ainit_checkpointer
 
-logger = logging.getLogger(__name__)
+
+def _try_display_graph(compiled_graph):
+    """仅在 Jupyter/IPython 环境中可视化工作流图，避免服务启动时输出无意义的对象表示"""
+    try:
+        from IPython import get_ipython
+        if get_ipython() is not None:
+            from IPython.display import Image, display
+            display(Image(data=compiled_graph.get_graph().draw_mermaid_png()))
+    except Exception:
+        pass
 
 
 def create_agent_graph():
@@ -30,6 +38,7 @@ def create_agent_graph():
     
     # 创建 Checkpoint Saver
     checkpointer = create_checkpointer()
+    logger.info(f"Checkpointer 类型: {type(checkpointer).__name__}")
     
     # 创建状态图
     graph = StateGraph(AgentState)
@@ -102,10 +111,13 @@ def create_agent_graph():
     # 错误处理 -> 结束
     graph.add_edge("handle_error", END)
     
-    # 编译图
+    # 编译图（传入 checkpointer 以启用状态持久化）
     compiled_graph = graph.compile(checkpointer=checkpointer)
     
-    logger.info("Agent 工作流图创建完成")
+    logger.info(f"Agent 工作流图创建完成，checkpointer 已绑定: {checkpointer is not None}")
+
+    _try_display_graph(compiled_graph)
+
     return compiled_graph
 
 

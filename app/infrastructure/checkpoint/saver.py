@@ -1,13 +1,11 @@
 """Checkpoint Saver 初始化"""
-import logging
 import atexit
 import asyncio
 from contextlib import AbstractContextManager
+from loguru import logger
 from langgraph.checkpoint.memory import MemorySaver
 from app.config import settings
 import os
-
-logger = logging.getLogger(__name__)
 
 _checkpointer = None
 _checkpointer_cm: AbstractContextManager | None = None
@@ -53,9 +51,12 @@ async def ainit_checkpointer():
     """在异步上下文中初始化 checkpointer。"""
     global _checkpointer, _sqlite_async_conn
     if _checkpointer is not None:
+        logger.debug(f"Checkpointer 已初始化，类型: {type(_checkpointer).__name__}")
         return _checkpointer
 
     checkpoint_type = settings.checkpoint_type.lower()
+    logger.info(f"初始化 Checkpointer，类型: {checkpoint_type}")
+    
     if checkpoint_type == "sqlite":
         import aiosqlite
         from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -70,6 +71,7 @@ async def ainit_checkpointer():
             conn.is_alive = lambda: True  # type: ignore[attr-defined]
         _sqlite_async_conn = conn
         _checkpointer = AsyncSqliteSaver(conn)
+        logger.info(f"SQLite Checkpointer 初始化完成")
         return _checkpointer
     elif checkpoint_type == "memory":
         logger.info("使用内存 Checkpoint（默认）")

@@ -1,12 +1,13 @@
 """路线规划服务"""
-import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
+from loguru import logger
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from app.infrastructure.llm.factory import LLMFactory
 from app.config import settings
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from app.graph.state import AgentState
 
 
 class PlanningService:
@@ -14,68 +15,58 @@ class PlanningService:
     
     def __init__(self):
         """初始化路线规划服务"""
-        # 提示词路径已移动到 app/prompt/ 目录
-        import os
-        # 获取项目根目录（从 domain/services/ 向上三级到 app/，再进入 prompt/）
-        current_dir = os.path.dirname(__file__)
-        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+        file_path = os.path.abspath(__file__)
+        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(file_path)))
         prompt_dir = os.path.join(app_dir, "prompt")
-        self.system_prompt_path = os.path.join(prompt_dir, "tour-route-planning-system-prompt.txt")
+        # 路线规划服务，用于生成旅游路线规划
+        self.system_prompt_path = os.path.join(prompt_dir, "route-planning-system-prompt.txt")
         self.user_prompt_path = os.path.join(prompt_dir, "route-planning-user-prompt.txt")
     
     def _load_system_prompt(self) -> str:
         """加载系统提示词"""
-        if os.path.exists(self.system_prompt_path):
-            with open(self.system_prompt_path, 'r', encoding='utf-8') as f:
+        try:
+            with open(self.system_prompt_path, "r", encoding="utf-8") as f:
                 return f.read()
-        else:
-            return """你是一位智能旅游规划助手，能够根据用户指定的城市或地区，自动生成合理、详细且实用的旅游攻略。"""
+        except FileNotFoundError:
+            raise FileNotFoundError(f"系统提示词文件不存在: {self.system_prompt_path}")
     
     def _load_user_prompt_template(self) -> str:
         """加载用户提示词模板"""
-        if os.path.exists(self.user_prompt_path):
-            with open(self.user_prompt_path, 'r', encoding='utf-8') as f:
+        try:
+            with open(self.user_prompt_path, "r", encoding="utf-8") as f:
                 return f.read()
-        else:
-            # 默认提示词
-            return """请根据以下信息生成旅游攻略：
-
-天气信息：
-{weather_info}
-
-景点信息：
-{poi_info}
-
-用户需求：
-{user_message}
-
-请生成一份详细的旅游攻略，包括：
-1. 天气概览与出行提示
-2. 每日行程规划（第1天、第2天...）
-3. 每个景点的简短介绍
-4. 根据天气给出出行建议
-
-直接输出完整的旅游建议，不要显式描述执行步骤。
-"""
+        except FileNotFoundError:
+            raise FileNotFoundError(f"用户提示词文件不存在: {self.user_prompt_path}")
     
-    def plan_route(
-        self,
-        weather_info: Optional[str],
-        poi_info: Optional[str],
-        user_message: str
-    ) -> Dict[str, Any]:
+    def _get_last_user_input(self, state: "AgentState") -> str:
+        """从 state 中提取最后一条用户输入"""
+        messages = state.get("messages", [])
+        if not messages:
+            return ""
+        
+        # 从后往前找最后一条用户消息
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                return msg.content if hasattr(msg, 'content') else str(msg)
+        
+        return ""
+    
+    def plan_route(self, state: "AgentState") -> Dict[str, Any]:
         """
         生成旅游路线规划
         
         Args:
-            weather_info: 天气信息
-            poi_info: 景点信息
-            user_message: 用户原始需求
+            state: Agent 状态对象
             
         Returns:
             包含路线规划的字典，如果失败则包含 error 字段
         """
         try:
+            # 从 state 中提取信息
+            weather_info = state.get("weather_data")
+            poi_info = state.get("poi_data")
+            user_message = self._get_last_user_input(state)
+            
             # 加载提示词
             system_prompt = self._load_system_prompt()
             user_prompt_template = self._load_user_prompt_template()
@@ -96,21 +87,53 @@ class PlanningService:
                 user_message=user_message
             )
             
-            # 调用 LLM（流式调用，收集完整响应）
+            # 调用 LLM（流式调用）
+            # agent_service.py 中的 astream_events 会实时捕获这个流式调用过程中的每个 chunk
             messages = [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_prompt)
             ]
             
-            # 流式调用并收集完整内容
+            # 流式调用并收集完整内容（用于最终返回和状态更新）
             route_plan_parts = []
-            for chunk in llm.stream(messages):
-                if hasattr(chunk, 'content') and chunk.content:
-                    route_plan_parts.append(chunk.content)
+            chunk_count = 0
+            total_chunk_length = 0
+            last_finish_reason = None  # 记录最后一个chunk的finish_reason
             
-            route_plan = "".join(route_plan_parts)
+            try:
+                for chunk in llm.stream(messages):
+                    # 检查finish_reason（如果chunk有该属性）
+                    if hasattr(chunk, 'response_metadata'):
+                        metadata = chunk.response_metadata
+                        if metadata and 'finish_reason' in metadata:
+                            last_finish_reason = metadata['finish_reason']
+                            if last_finish_reason == 'length':
+                                logger.warning(f"[PLANNING] ⚠️ 检测到finish_reason='length'，输出因token限制被截断！")
+                            elif last_finish_reason:
+                                logger.info(f"[PLANNING] finish_reason: {last_finish_reason}")
+                    
+                    if hasattr(chunk, 'content') and chunk.content:
+                        content = chunk.content
+                        route_plan_parts.append(content)
+                        chunk_count += 1
+                        chunk_length = len(content)
+                        total_chunk_length += chunk_length
+                
+                route_plan = "".join(route_plan_parts)
+                final_length = len(route_plan)
+                
+                logger.info(f"[PLANNING] LLM流式调用完成 - 总chunks: {chunk_count}, 最终内容长度: {final_length}, finish_reason: {last_finish_reason}")
+                
+            except Exception as stream_error:
+                logger.error(f"[PLANNING] LLM流式调用异常: {stream_error}", exc_info=True)
+                # 即使流式调用失败，也尝试返回已收集的内容
+                if route_plan_parts:
+                    route_plan = "".join(route_plan_parts)
+                    logger.warning(f"[PLANNING] 流式调用异常，但已收集部分内容，长度: {len(route_plan)}")
+                else:
+                    raise
             
-            logger.info("路线规划完成")
+            logger.info(f"[PLANNING] 路线规划完成，最终内容长度: {len(route_plan)}")
             return {
                 "route_plan": route_plan,
                 "messages": [AIMessage(content=route_plan)]

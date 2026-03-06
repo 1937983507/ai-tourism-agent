@@ -1,11 +1,9 @@
 """天气预报工具"""
-import logging
 import httpx
 from typing import Optional, Tuple
+from loguru import logger
 from langchain.tools import tool
 from app.config import settings
-
-logger = logging.getLogger(__name__)
 
 # 地理编码 API
 ENCODE_API_URL = "http://api.openweathermap.org/geo/1.0/direct"
@@ -44,7 +42,7 @@ def weather_forecast(city_name: str, day_count: int = 7) -> str:
         
         # 2. 调用 Open-Meteo API
         from datetime import date, timedelta
-        today = date.today()
+        today = date.today() + timedelta(1)
         end_date = today + timedelta(days=day_count - 1)
         
         url = (

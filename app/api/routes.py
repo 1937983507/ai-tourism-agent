@@ -1,14 +1,12 @@
 """API 路由定义"""
-import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
+from loguru import logger
 from app.api.models import ChatRequest, HealthResponse, ToolInfo
 from app.application.agent_service import get_agent_service
 from app.domain.tools.manager import get_tools
 from app.config import settings
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -44,7 +42,7 @@ async def list_tools():
 @router.post("/chat-stream")
 async def chat_stream(request: ChatRequest):
     """流式对话接口（SSE）"""
-    logger.info(f"收到流式对话请求，session_id: {request.session_id}")
+    logger.info(f"[CHAT-STREAM] 收到流式对话请求，session_id: {request.session_id}, user_id: {request.user_id}, message: {request.message[:100]}")
     
     agent_service = get_agent_service()
     model_name = settings.openai_model_name
@@ -69,8 +67,8 @@ async def chat_stream(request: ChatRequest):
             yield f"data: {end_data}\n\n"
         
         except Exception as e:
-            logger.error(f"流式对话异常: {e}", exc_info=True)
-            error_msg = "服务暂时不可用，请稍后重试"
+            logger.exception(f"[SSE] 流式对话异常: {e}")
+            error_msg = f"抱歉，我暂时无法回复您的消息。错误: {str(e)[:100]}"
             error_data = f'{{"choices":[{{"index":0,"text":"{error_msg}","finish_reason":"stop","model":"{model_name}"}}]}}'
             yield f"data: {error_data}\n\n"
     
@@ -80,7 +78,7 @@ async def chat_stream(request: ChatRequest):
 @router.post("/chat")
 async def chat(request: ChatRequest):
     """非流式对话接口（用于测试）"""
-    logger.info(f"收到对话请求，session_id: {request.session_id}")
+    logger.info(f"[CHAT] 收到对话请求，session_id: {request.session_id}, user_id: {request.user_id}, message: {request.message[:100]}")
     
     agent_service = get_agent_service()
     result = await agent_service.chat(

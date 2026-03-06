@@ -1,10 +1,8 @@
 """数据获取节点"""
-import logging
 from typing import Dict, Any
+from loguru import logger
 from app.graph.state import AgentState
 from app.domain.services.data_service import DataService
-
-logger = logging.getLogger(__name__)
 
 # 创建服务实例
 _data_service = DataService()
