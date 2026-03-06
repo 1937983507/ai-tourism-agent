@@ -108,11 +108,30 @@ class FormattingService:
             # 尝试解析 JSON 以确保格式正确
             try:
                 structured_data = json.loads(json_content)
-                logger.info("JSON 解析成功，结构化输出已生成")
+                logger.info("JSON 解析成功，开始校验结构化输出")
+
+                # 校验结构：必须包含非空 dailyRoutes
+                validation_error: Optional[str] = None
+                if not isinstance(structured_data, dict):
+                    validation_error = "结构化输出不是 JSON 对象"
+                else:
+                    daily_routes = structured_data.get("dailyRoutes")
+                    if not isinstance(daily_routes, list):
+                        validation_error = "结构化输出缺少 dailyRoutes 或类型不正确"
+                    elif len(daily_routes) == 0:
+                        validation_error = "结构化输出 dailyRoutes 为空"
+
+                if validation_error:
+                    logger.warning(f"结构化输出校验失败: {validation_error}")
+                    # 保留 structured_output 方便排查，但通过 error 标记为无效（下游不应触发回调）
+                    return {"error": validation_error, "structured_output": structured_data}
+
+                logger.info("结构化输出校验通过")
                 return {"structured_output": structured_data}
             except json.JSONDecodeError as e:
                 logger.error(f"JSON 解析失败: {e}，原始内容: {json_content[:200]}...")
-                return {"structured_output": {"raw_json": json_content, "parse_error": str(e)}}
+                # 解析失败直接标记 error
+                return {"error": f"JSON 解析失败: {str(e)}", "raw_json": json_content}
         
         except Exception as e:
             logger.error(f"格式化输出异常: {e}", exc_info=True)

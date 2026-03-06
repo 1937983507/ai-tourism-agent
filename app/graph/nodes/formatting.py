@@ -49,6 +49,8 @@ def format_output_node(state: AgentState) -> dict:
             
             # 如果成功生成结构化输出，调用Java后端的callback接口
             structured_output = formatting_result.get("structured_output")
+
+            # format_to_json 已负责校验格式/空 dailyRoutes 等无效情况（会返回 error），这里只做最小触发条件判断
             if structured_output and session_id and user_id:
                 try:
                     # 异步发送回调（不阻塞主流程）
