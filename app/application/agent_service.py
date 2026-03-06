@@ -1,10 +1,8 @@
 """Agent 服务封装"""
-import logging
 from typing import AsyncIterator, Dict, Any
 from langchain_core.messages import HumanMessage
+from loguru import logger
 from app.graph.workflow import get_agent_graph
-
-logger = logging.getLogger(__name__)
 
 
 class AgentService:
@@ -100,7 +98,7 @@ class AgentService:
                                                     yield char
 
         except Exception as e:
-            logger.error(f"流式对话异常: {e}", exc_info=True)
+            logger.exception(f"流式对话异常: {e}")
             yield "\n错误: 服务暂时不可用，请稍后重试"
     
 
@@ -125,7 +123,7 @@ class AgentService:
                 "error": result.get("error")
             }
         except Exception as e:
-            logger.error(f"对话异常: {e}", exc_info=True)
+            logger.exception(f"对话异常: {e}")
             return {
                 "response": "",
                 "error": str(e)

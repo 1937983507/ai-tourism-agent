@@ -1,10 +1,8 @@
 """LLM 意图识别节点"""
-import logging
 from typing import Dict, Any
+from loguru import logger
 from app.graph.state import AgentState
 from app.domain.services.llm_intent_service import LLMIntentService
-
-logger = logging.getLogger(__name__)
 
 # 创建服务实例
 _llm_intent_service = LLMIntentService()
@@ -37,7 +35,7 @@ def llm_intent_recognition_node(state: AgentState) -> dict:
         logger.info(f"LLM 意图识别完成: intent_type={result.get('intent_type')}, city={result.get('city_name')}, days={result.get('day_count')}")
         
     except Exception as e:
-        logger.error(f"LLM 意图识别节点异常: {e}", exc_info=True)
+        logger.exception(f"LLM 意图识别节点异常: {e}")
         # 降级处理：标记为需要引导
         result["intent_type"] = "tourism_need_guidance"
     

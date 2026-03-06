@@ -1,8 +1,6 @@
 """路由决策函数"""
-import logging
+from loguru import logger
 from app.graph.state import AgentState
-
-logger = logging.getLogger(__name__)
 
 
 def check_intent_result(state: AgentState) -> str:

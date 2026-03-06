@@ -1,9 +1,7 @@
 """数据获取服务"""
-import logging
 from typing import Dict, Any, Optional
+from loguru import logger
 from app.domain.tools.manager import get_tools
-
-logger = logging.getLogger(__name__)
 
 
 class DataService:
@@ -46,7 +44,7 @@ class DataService:
                 return None
         
         except Exception as e:
-            logger.error(f"天气查询异常: {e}", exc_info=True)
+            logger.exception(f"天气查询异常: {e}")
             return None
     
     def fetch_poi(self, city_name: Optional[str], poi_count: int = 10) -> Optional[str]:
@@ -86,6 +84,6 @@ class DataService:
                 return None
         
         except Exception as e:
-            logger.error(f"POI 查询异常: {e}", exc_info=True)
+            logger.exception(f"POI 查询异常: {e}")
             return None
 

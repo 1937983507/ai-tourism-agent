@@ -1,16 +1,14 @@
 """LLM 意图识别服务"""
-import logging
 import json
 import os
 from typing import Dict, Any, Optional, List, TYPE_CHECKING
+from loguru import logger
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.infrastructure.llm.factory import LLMFactory
 from app.domain.services.simple_intent_extractor import SimpleIntentExtractor
 
 if TYPE_CHECKING:
     from app.graph.state import AgentState
-
-logger = logging.getLogger(__name__)
 
 
 class LLMIntentService:

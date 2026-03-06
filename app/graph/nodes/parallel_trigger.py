@@ -1,9 +1,7 @@
 """并行触发节点（用于触发并行执行）"""
-import logging
 from typing import Dict, Any
+from loguru import logger
 from app.graph.state import AgentState
-
-logger = logging.getLogger(__name__)
 
 
 def parallel_trigger_node(state: AgentState) -> dict:

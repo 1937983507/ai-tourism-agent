@@ -1,14 +1,12 @@
 """API 路由定义"""
-import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
+from loguru import logger
 from app.api.models import ChatRequest, HealthResponse, ToolInfo
 from app.application.agent_service import get_agent_service
 from app.domain.tools.manager import get_tools
 from app.config import settings
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -69,7 +67,7 @@ async def chat_stream(request: ChatRequest):
             yield f"data: {end_data}\n\n"
         
         except Exception as e:
-            logger.error(f"[SSE] 流式对话异常: {e}", exc_info=True)
+            logger.exception(f"[SSE] 流式对话异常: {e}")
             error_msg = f"抱歉，我暂时无法回复您的消息。错误: {str(e)[:100]}"
             error_data = f'{{"choices":[{{"index":0,"text":"{error_msg}","finish_reason":"stop","model":"{model_name}"}}]}}'
             yield f"data: {error_data}\n\n"

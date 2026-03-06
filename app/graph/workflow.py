@@ -1,6 +1,6 @@
 """LangGraph 工作流定义"""
-import logging
 from langgraph.graph import StateGraph, END
+from loguru import logger
 from app.graph.state import AgentState
 from app.graph.nodes import (
     validate_input_node,
@@ -19,8 +19,6 @@ from app.graph.nodes import (
 )
 from app.infrastructure.checkpoint.saver import create_checkpointer
 from app.infrastructure.checkpoint.saver import ainit_checkpointer
-
-logger = logging.getLogger(__name__)
 
 
 def _try_display_graph(compiled_graph):

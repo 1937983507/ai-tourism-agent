@@ -1,11 +1,9 @@
 """格式化输出节点"""
-import logging
 from typing import Dict, Any
+from loguru import logger
 from app.graph.state import AgentState
 from app.domain.services.formatting_service import FormattingService
 from app.domain.services.callback_service import CallbackService
-
-logger = logging.getLogger(__name__)
 
 # 创建服务实例
 _formatting_service = FormattingService()

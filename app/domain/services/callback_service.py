@@ -1,11 +1,9 @@
 """回调服务：将结构化输出发送到Java后端"""
-import logging
 import json
 import httpx
 from typing import Dict, Any, Optional
+from loguru import logger
 from app.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 class CallbackService:

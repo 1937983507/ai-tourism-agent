@@ -1,10 +1,8 @@
 """路线规划节点"""
-import logging
 from typing import Dict, Any
+from loguru import logger
 from app.graph.state import AgentState
 from app.domain.services.planning_service import PlanningService
-
-logger = logging.getLogger(__name__)
 
 # 创建服务实例
 _planning_service = PlanningService()
@@ -26,6 +24,6 @@ def plan_route_node(state: AgentState) -> dict:
         return planning_result
     
     except Exception as e:
-        logger.error(f"路线规划节点异常: {e}", exc_info=True)
+        logger.exception(f"路线规划节点异常: {e}")
         return {"error": f"路线规划失败: {str(e)}"}
 

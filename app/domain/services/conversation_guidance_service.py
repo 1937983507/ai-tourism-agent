@@ -1,16 +1,14 @@
 """对话引导服务"""
-import logging
 import os
 import json
 from typing import Dict, Any, List, Optional, TYPE_CHECKING
+from loguru import logger
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from app.infrastructure.llm.factory import LLMFactory
 from app.domain.services.simple_intent_extractor import SimpleIntentExtractor
 
 if TYPE_CHECKING:
     from app.graph.state import AgentState
-
-logger = logging.getLogger(__name__)
 
 
 class ConversationGuidanceService:

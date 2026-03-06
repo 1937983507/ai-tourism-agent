@@ -1,13 +1,11 @@
 """格式化输出服务"""
-import logging
 import json
 import os
 from typing import Dict, Any, Optional
+from loguru import logger
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.infrastructure.llm.factory import LLMFactory
 from app.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 class FormattingService:

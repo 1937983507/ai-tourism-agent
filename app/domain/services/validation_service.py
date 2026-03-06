@@ -1,9 +1,7 @@
 """输入验证服务"""
-import logging
 import re
 from typing import Dict, Any
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class ValidationService:

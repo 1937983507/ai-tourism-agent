@@ -1,14 +1,12 @@
 """通用回复服务"""
-import logging
 import os
 from typing import Dict, Any, List, TYPE_CHECKING
+from loguru import logger
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from app.infrastructure.llm.factory import LLMFactory
 
 if TYPE_CHECKING:
     from app.graph.state import AgentState
-
-logger = logging.getLogger(__name__)
 
 
 class GeneralResponseService:

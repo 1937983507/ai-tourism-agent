@@ -1,10 +1,8 @@
 """通用回复节点"""
-import logging
 from typing import Dict, Any
+from loguru import logger
 from app.graph.state import AgentState
 from app.domain.services.general_response_service import GeneralResponseService
-
-logger = logging.getLogger(__name__)
 
 # 创建服务实例
 _general_response_service = GeneralResponseService()
@@ -27,7 +25,7 @@ def general_response_node(state: AgentState) -> dict:
         logger.info("通用回复生成完成")
         
     except Exception as e:
-        logger.error(f"通用回复节点异常: {e}", exc_info=True)
+        logger.exception(f"通用回复节点异常: {e}")
         result["error"] = f"通用回复失败: {str(e)}"
     
     return result

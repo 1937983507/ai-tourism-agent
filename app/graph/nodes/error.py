@@ -1,9 +1,7 @@
 """错误处理节点"""
-import logging
 from typing import Dict, Any
+from loguru import logger
 from app.graph.state import AgentState
-
-logger = logging.getLogger(__name__)
 
 
 def handle_error_node(state: AgentState) -> dict:

@@ -1,13 +1,11 @@
 """Checkpoint Saver 初始化"""
-import logging
 import atexit
 import asyncio
 from contextlib import AbstractContextManager
+from loguru import logger
 from langgraph.checkpoint.memory import MemorySaver
 from app.config import settings
 import os
-
-logger = logging.getLogger(__name__)
 
 _checkpointer = None
 _checkpointer_cm: AbstractContextManager | None = None
@@ -64,7 +62,7 @@ async def ainit_checkpointer():
         from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
         db_path = settings.sqlite_db_path
         os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else ".", exist_ok=True)
-        logger.info(f"使用 SQLite Checkpoint，路径: {db_path} (绝对路径: {os.path.abspath(db_path)})")
+        logger.info(f"使用 SQLite Checkpoint，路径: {db_path}")
         # 避免使用 from_conn_string（其内部会创建 aiosqlite conn，但当前 aiosqlite 版本没有 is_alive，
         # 而 langgraph 会调用 conn.is_alive() 导致 500）。
         conn = await aiosqlite.connect(db_path)

@@ -1,21 +1,14 @@
 """FastAPI 应用入口"""
-import logging
 import time
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from loguru import logger
 from app.api.routes import router
 from app.config import settings
 from app.graph.workflow import init_agent_graph
 from app.infrastructure.checkpoint.saver import aclose_checkpointer
-
-# 配置日志（包含文件名、函数名、行号）
-logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper()),
-    format="%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d:%(funcName)s] - %(message)s"
-)
-
-logger = logging.getLogger(__name__)
+from app.infrastructure.logging import setup_logging
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -52,11 +45,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             return response
         except Exception as e:
             process_time = time.time() - start_time
-            logger.error(
+            logger.exception(
                 f"[ERROR] {request.method} {request.url.path} | "
                 f"Exception: {str(e)} | "
-                f"Time: {process_time:.3f}s",
-                exc_info=True
+                f"Time: {process_time:.3f}s"
             )
             raise
 
@@ -80,6 +72,9 @@ app.include_router(router)
 @app.on_event("startup")
 async def startup():
     """应用启动事件"""
+    # 初始化日志系统（必须在最前面）
+    setup_logging()
+    
     logger.info("AI-Tourism Agent Service 启动中...")
     logger.info(f"Checkpoint 类型: {settings.checkpoint_type}")
     logger.info(f"OpenAI 模型: {settings.openai_model_name}")

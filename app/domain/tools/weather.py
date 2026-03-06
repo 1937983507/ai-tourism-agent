@@ -1,11 +1,9 @@
 """天气预报工具"""
-import logging
 import httpx
 from typing import Optional, Tuple
+from loguru import logger
 from langchain.tools import tool
 from app.config import settings
-
-logger = logging.getLogger(__name__)
 
 # 地理编码 API
 ENCODE_API_URL = "http://api.openweathermap.org/geo/1.0/direct"
