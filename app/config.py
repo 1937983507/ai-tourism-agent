@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     # 天气 API 配置
     openweather_api_key: Optional[str] = None
     
+    # LangSmith 配置
+    langsmith_enabled: bool = True  # 是否启用 LangSmith 追踪
+    langsmith_api_key: Optional[str] = None  # LangSmith API Key
+    langsmith_project: Optional[str] = "ai-tourism-agent"  # 项目名称
+    langsmith_endpoint: Optional[str] = None  # LangSmith API 端点（可选，默认使用官方端点）
+    langsmith_workspace_id: Optional[str] = None  # Workspace ID（可选）
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

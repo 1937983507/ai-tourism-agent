@@ -1,7 +1,8 @@
 """LLM 工厂类 - 统一管理 LLM 实例创建"""
-from typing import Optional
+from typing import Optional, List
 from loguru import logger
 from langchain_openai import ChatOpenAI
+from langchain_core.callbacks import BaseCallbackHandler
 from app.config import settings
 
 
@@ -25,15 +26,20 @@ class LLMFactory:
         Returns:
             ChatOpenAI 实例
         """
-        return ChatOpenAI(
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_base_url,
-            model_name=settings.openai_model_name,
-            max_tokens=max_tokens or settings.openai_max_output_tokens,
-            temperature=temperature,
-            streaming=True,
-            **kwargs
-        )
+        
+        llm_params = {
+            "api_key": settings.openai_api_key,
+            "base_url": settings.openai_base_url,
+            "model_name": settings.openai_model_name,
+            "max_tokens": max_tokens or settings.openai_max_output_tokens,
+            "temperature": temperature,
+            "streaming": True,
+        }
+        
+        # 合并其他参数
+        llm_params.update(kwargs)
+        
+        return ChatOpenAI(**llm_params)
     
     @staticmethod
     def create_llm(
