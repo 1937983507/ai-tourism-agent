@@ -44,7 +44,7 @@ def weather_forecast(city_name: str, day_count: int = 7) -> str:
         
         # 2. 调用 Open-Meteo API
         from datetime import date, timedelta
-        today = date.today()
+        today = date.today() + timedelta(1)
         end_date = today + timedelta(days=day_count - 1)
         
         url = (
