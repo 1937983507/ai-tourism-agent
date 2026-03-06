@@ -20,7 +20,7 @@
 - **状态持久化**：支持 SQLite/PostgreSQL Checkpoint，实现会话恢复
 
 ### 🛠️ 工具集成
-- **天气预报**：集成 OpenWeather API
+- **天气预报**：支持 OpenWeather API 和和风天气 API，可通过环境变量切换
 - **景点搜索**：通过 HTTP 调用 Java 后端服务
 - **结构化输出**：自动生成 JSON 格式的旅游攻略
 
@@ -38,21 +38,51 @@ pip install -r requirements.txt
 
 ```bash
 # OpenAI 配置
-OPENAI_API_KEY=your_api_key_here
+OPENAI_API_KEY=your_api_key
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL_NAME=gpt-4o-mini
 OPENAI_MAX_OUTPUT_TOKENS=4096
 
+# Checkpoint 配置（默认使用内存，可选 memory | sqlite | postgres）
+CHECKPOINT_TYPE=sqlite
+SQLITE_DB_PATH=./checkpoints.db
+POSTGRES_CONN_STRING=postgresql://user:password@localhost:5432/dbname
+
 # Java 服务配置
+# 请启动 https://github.com/1937983507/ai-tourism-backend 后端项目
 JAVA_SERVICE_URL=http://localhost:8080
 JAVA_SERVICE_INTERNAL_TOKEN=your_internal_token
 
-# 天气 API 配置（可选）
-OPENWEATHER_API_KEY=your_weather_api_key
+# 本Agent服务配置
+AGENT_PORT=8291
+AGENT_HOST=0.0.0.0
 
-# Checkpoint 配置
-CHECKPOINT_TYPE=memory  # memory | sqlite | postgres
-CHECKPOINT_SQLITE_PATH=./data/checkpoints.db
+# 天气 API 配置
+# 天气服务提供商: "openweathermap" (默认) 或 "qweather" (和风天气)
+WEATHER_PROVIDER=openweathermap
+# Open Weather API Key（当WEATHER_PROVIDER=openweathermap 时需要配置）
+# 申请地址：http://api.openweathermap.org
+OPENWEATHER_API_KEY=your_openweather_api_key
+# 和风天气的各项配置 (当 WEATHER_PROVIDER=qweather 时需要配置)
+# 申请地址: https://dev.qweather.com/
+QWEATHER_API_HOST=your_qweather_api_host
+QWEATHER_JWT_PROJECT_ID=your_qweather_jwt_project_id
+QWEATHER_JWT_KEY_ID=your_qweather_jwt_key_id
+QWEATHER_JWT_PRIVATE_KEY_PATH=your_qweather_qweather_jwt_private_key_path
+
+# 日志配置
+LOG_LEVEL=INFO
+LOG_DIR=./logs
+LOG_RETENTION_DAYS=7
+LOG_ROTATION=00:00
+LOG_ENCODING=utf-8
+
+# LangSmith 配置
+LANGSMITH_ENABLED=true
+LANGSMITH_API_KEY="xxx"
+LANGSMITH_PROJECT=ai-tourism-agent
+LANGSMITH_WORKSPACE_ID="Workspace 1"
+
 ```
 
 ### 3. 运行服务
