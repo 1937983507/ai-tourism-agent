@@ -9,6 +9,7 @@ from app.config import settings
 from app.graph.workflow import init_agent_graph
 from app.infrastructure.checkpoint.saver import aclose_checkpointer
 from app.infrastructure.logging import setup_logging
+from app.infrastructure.llm.langsmith_setup import setup_langsmith_environment
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -79,6 +80,10 @@ async def startup():
     logger.info(f"Checkpoint 类型: {settings.checkpoint_type}")
     logger.info(f"OpenAI 模型: {settings.openai_model_name}")
     logger.info(f"OpenAI max_output_tokens: {settings.openai_max_output_tokens}")
+    
+    # 初始化 LangSmith（通过环境变量方式）
+    setup_langsmith_environment()
+    
     # 预初始化图与 checkpointer，避免首次请求时在运行中的 event loop 里做同步初始化导致报错
     await init_agent_graph()
     logger.info("服务启动完成")
