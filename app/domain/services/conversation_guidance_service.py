@@ -18,19 +18,47 @@ class ConversationGuidanceService:
     
     def __init__(self):
         """初始化对话引导服务"""
-        # 获取项目根目录
-        current_dir = os.path.dirname(__file__)
-        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+        file_path = os.path.abspath(__file__)
+        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(file_path)))
         prompt_dir = os.path.join(app_dir, "prompt")
-        self.system_prompt_path = os.path.join(prompt_dir, "conversation-guidance-system-prompt.txt")
-    
+        # 对话引导服务，用于引导用户提供旅游目的地和天数信息
+        self.guidance_system_prompt_path = os.path.join(prompt_dir, "conversation-guidance-system-prompt.txt")
+        self.guidance_user_prompt_path = os.path.join(prompt_dir, "conversation-guidance-user-prompt.txt")
+        # 信息提取系统提示词，从用户的消息中提取关键信息
+        self.extraction_system_prompt_path = os.path.join(prompt_dir, "conversation-guidance-extraction-system-prompt.txt")
+        self.extraction_user_prompt_path = os.path.join(prompt_dir, "conversation-guidance-extraction-user-prompt.txt")
+        
     def _load_system_prompt(self) -> str:
         """加载系统提示词"""
-        if os.path.exists(self.system_prompt_path):
-            with open(self.system_prompt_path, 'r', encoding='utf-8') as f:
+        try:
+            with open(self.guidance_system_prompt_path, "r", encoding="utf-8") as f:
                 return f.read()
-        else:
-            return """你是一位友好的旅游助手。通过友好对话引导用户提供旅游目的地和天数信息。保持友好、自然的对话风格，一次只问一个问题。"""
+        except FileNotFoundError:
+            raise FileNotFoundError(f"系统提示词文件不存在: {self.guidance_system_prompt_path}")
+
+    def _load_extraction_system_prompt(self) -> str:
+        """加载信息提取系统提示词"""
+        try:
+            with open(self.extraction_system_prompt_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"信息提取系统提示词文件不存在: {self.extraction_system_prompt_path}")
+
+    def _load_extraction_user_prompt_template(self) -> str:
+        """加载信息提取用户提示词模板"""
+        try:
+            with open(self.extraction_user_prompt_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"信息提取用户提示词文件不存在: {self.extraction_user_prompt_path}")
+
+    def _load_guidance_user_prompt_template(self) -> str:
+        """加载对话引导用户提示词模板"""
+        try:
+            with open(self.guidance_user_prompt_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"对话引导用户提示词文件不存在: {self.guidance_user_prompt_path}")
     
     def guide_conversation(self, state: "AgentState") -> Dict[str, Any]:
         """
@@ -149,22 +177,17 @@ class ConversationGuidanceService:
             
             context_str = "\n".join(context_info) if context_info else "尚未获取到任何信息"
             
-            # 构建提示词
-            extraction_prompt = f"""当前已知信息：
-{context_str}
+            conversation_history_str = self._format_conversation_history(conversation_history)
 
-对话历史：
-{self._format_conversation_history(conversation_history)}
-
-用户最新输入：{user_input}
-
-请从用户输入中提取旅游信息。输出 JSON 格式：
-{{"city_name": "城市名或null", "day_count": 数字或null}}
-
-注意：
-1. 如果用户输入中没有提到城市或天数，对应字段返回 null
-2. 如果已知信息中有城市或天数，但用户输入中没有新的信息，返回 null（保持已有信息）
-3. 只提取用户明确提到的新信息"""
+            # 构建提示词（从 prompt 文件读取）
+            extraction_prompt_template = self._load_extraction_user_prompt_template()
+            extraction_prompt = (
+                extraction_prompt_template
+                .replace("{context_str}", context_str)
+                .replace("{conversation_history}", conversation_history_str)
+                .replace("{user_input}", user_input)
+            )
+            extraction_system_prompt = self._load_extraction_system_prompt()
             
             # 创建 LLM 实例（使用 JSON 格式）
             llm = LLMFactory.create_llm(
@@ -175,7 +198,7 @@ class ConversationGuidanceService:
             
             # 构建消息
             messages = [
-                SystemMessage(content="你是一个信息提取助手，从用户输入中提取旅游相关信息。"),
+                SystemMessage(content=extraction_system_prompt),
                 HumanMessage(content=extraction_prompt)
             ]
             
@@ -229,7 +252,7 @@ class ConversationGuidanceService:
         """
         try:
             # 加载系统提示词
-            system_prompt = self._load_system_prompt()
+            guidance_system_prompt = self._load_system_prompt()
             
             # 构建上下文信息
             context_info = []
@@ -240,20 +263,16 @@ class ConversationGuidanceService:
             
             context_str = "\n".join(context_info) if context_info else "尚未获取到任何信息"
             
-            # 构建提示词
-            guidance_prompt = f"""当前已知信息：
-{context_str}
+            conversation_history_str = self._format_conversation_history(conversation_history)
 
-对话历史：
-{self._format_conversation_history(conversation_history)}
-
-用户最新输入：{user_input}
-
-请根据当前已知信息，友好地引导用户提供缺失的信息（城市或天数）。
-- 如果城市和天数都已知，请确认信息并表示感谢
-- 如果缺少城市，请询问目的地
-- 如果缺少天数，请询问旅游天数
-- 保持友好、自然的对话风格，一次只问一个问题"""
+            # 构建提示词（从 prompt 文件读取）
+            guidance_user_prompt_template = self._load_guidance_user_prompt_template()
+            guidance_user_prompt = (
+                guidance_user_prompt_template
+                .replace("{context_str}", context_str)
+                .replace("{conversation_history}", conversation_history_str)
+                .replace("{user_input}", user_input)
+            )
             
             # 创建 LLM 实例
             llm = LLMFactory.create_llm(
@@ -263,8 +282,8 @@ class ConversationGuidanceService:
             
             # 构建消息
             messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=guidance_prompt)
+                SystemMessage(content=guidance_system_prompt),
+                HumanMessage(content=guidance_user_prompt)
             ]
             
             # 调用 LLM

@@ -16,43 +16,28 @@ class FormattingService:
     def __init__(self):
         """初始化格式化输出服务"""
         import os
-        # 获取 app 目录的绝对路径
-        # __file__ = app/domain/services/formatting_service.py
-        # 方法：向上三级目录到 app/，然后进入 prompt/
         file_path = os.path.abspath(__file__)
-        # 向上三级：services -> domain -> app
         app_dir = os.path.dirname(os.path.dirname(os.path.dirname(file_path)))
         prompt_dir = os.path.join(app_dir, "prompt")
+        # 将旅游攻略文本转化为JSON字符串
         self.json_system_prompt_path = os.path.join(prompt_dir, "json-format-system-prompt.txt")
         self.json_user_prompt_path = os.path.join(prompt_dir, "json-format-user-prompt.txt")
     
     def _load_json_system_prompt(self) -> str:
         """加载 JSON 格式化系统提示词"""
-        if os.path.exists(self.json_system_prompt_path):
-            logger.info(f"加载系统提示词文件: {self.json_system_prompt_path}")
-            with open(self.json_system_prompt_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                return content
-        else:
-            logger.warning(f"系统提示词文件不存在: {self.json_system_prompt_path}，使用默认提示词")
-            return "你是一个专业的 JSON 数据格式化助手。你的任务是将旅游攻略文本转换为结构化的 JSON 格式，表示多天内的路线途径点。你必须只输出有效的 JSON 对象，不要包含任何其他文字、代码块标记或解释。"
+        try:
+            with open(self.json_system_prompt_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"系统提示词文件不存在: {self.json_system_prompt_path}")
     
     def _load_json_user_prompt_template(self) -> str:
         """加载 JSON 格式化用户提示词模板"""
-        if os.path.exists(self.json_user_prompt_path):
-            logger.info(f"加载用户提示词文件: {self.json_user_prompt_path}")
-            with open(self.json_user_prompt_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                return content
-        else:
-            logger.warning(f"用户提示词文件不存在: {self.json_user_prompt_path}，使用默认提示词")
-            # 默认提示词
-            return """## 角色与任务
-你是一个智能助手，我需要你基于用户输入的旅游攻略，生成一个结构化对象，以表示多天内的路线途径点。
-
-## 用户旅游攻略
-{route_plan}
-"""
+        try:
+            with open(self.json_user_prompt_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"用户提示词文件不存在: {self.json_user_prompt_path}")
     
     def format_to_json(self, route_plan: str) -> Dict[str, Any]:
         """

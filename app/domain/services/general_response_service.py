@@ -16,19 +16,19 @@ class GeneralResponseService:
     
     def __init__(self):
         """初始化通用回复服务"""
-        # 获取项目根目录
-        current_dir = os.path.dirname(__file__)
-        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+        file_path = os.path.abspath(__file__)
+        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(file_path)))
         prompt_dir = os.path.join(app_dir, "prompt")
+        # 通用回复服务，用于处理非旅游相关的问题或需求
         self.system_prompt_path = os.path.join(prompt_dir, "general-response-system-prompt.txt")
     
     def _load_system_prompt(self) -> str:
         """加载系统提示词"""
-        if os.path.exists(self.system_prompt_path):
-            with open(self.system_prompt_path, 'r', encoding='utf-8') as f:
+        try:
+            with open(self.system_prompt_path, "r", encoding="utf-8") as f:
                 return f.read()
-        else:
-            return """你是一位友好的AI助手。请理解用户的问题或需求，提供友好、有帮助的回答。"""
+        except FileNotFoundError:
+            raise FileNotFoundError(f"系统提示词文件不存在: {self.system_prompt_path}")
     
     def _get_last_user_input(self, state: "AgentState") -> str:
         """从 state 中提取最后一条用户输入"""

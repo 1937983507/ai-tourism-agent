@@ -18,20 +18,28 @@ class LLMIntentService:
     
     def __init__(self):
         """初始化 LLM 意图识别服务"""
-        # 获取项目根目录（从 domain/services/ 向上三级到 app/，再进入 prompt/）
-        current_dir = os.path.dirname(__file__)
-        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+        file_path = os.path.abspath(__file__)
+        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(file_path)))
         prompt_dir = os.path.join(app_dir, "prompt")
+        # 意图识别服务，用于识别用户意图并提取信息
         self.system_prompt_path = os.path.join(prompt_dir, "intent-recognition-system-prompt.txt")
+        self.user_prompt_path = os.path.join(prompt_dir, "intent-recognition-user-prompt.txt")
     
     def _load_system_prompt(self) -> str:
         """加载系统提示词"""
-        if os.path.exists(self.system_prompt_path):
-            with open(self.system_prompt_path, 'r', encoding='utf-8') as f:
+        try:
+            with open(self.system_prompt_path, "r", encoding="utf-8") as f:
                 return f.read()
-        else:
-            return """你是一位专业的意图识别助手。请分析用户输入，识别意图并提取关键信息。
-输出 JSON 格式：{"intent_type": "tourism" | "non_tourism" | "tourism_need_guidance", "city_name": "城市名或null", "day_count": 数字或null, "confidence": 0.0-1.0}"""
+        except FileNotFoundError:
+            raise FileNotFoundError(f"系统提示词文件不存在: {self.system_prompt_path}")
+
+    def _load_user_prompt_template(self) -> str:
+        """加载用户提示词模板"""
+        try:
+            with open(self.user_prompt_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"用户提示词文件不存在: {self.user_prompt_path}")
     
     def _get_last_user_input(self, state: "AgentState") -> str:
         """从 state 中提取最后一条用户输入"""
@@ -70,6 +78,7 @@ class LLMIntentService:
             
             # 加载系统提示词
             system_prompt = self._load_system_prompt()
+            user_prompt_template = self._load_user_prompt_template()
             
             # 构建上下文信息
             context_parts = []
@@ -93,13 +102,16 @@ class LLMIntentService:
             
             context_str = "\n".join(context_parts) if context_parts else ""
             
-            # 构建用户提示
-            user_prompt = f"用户输入：{user_input}"
-            if context_str:
-                user_prompt += f"\n\n上下文信息：\n{context_str}"
-            if history_context:
-                user_prompt += history_context
-            user_prompt += "\n\n请分析用户意图并提取信息。如果处于引导模式，用户的简短回答（如'5天'、'3天'等）应该被视为对引导问题的回答，属于旅游意图。"
+            context_block = f"\n\n上下文信息：\n{context_str}\n" if context_str else "\n"
+            history_block = f"{history_context}\n" if history_context else ""
+
+            # 构建用户提示（从 prompt 文件读取）
+            user_prompt = (
+                user_prompt_template
+                .replace("{user_input}", user_input)
+                .replace("{context_block}", context_block)
+                .replace("{history_block}", history_block)
+            )
             
             # 创建 LLM 实例（使用 JSON 格式）
             llm = LLMFactory.create_llm(

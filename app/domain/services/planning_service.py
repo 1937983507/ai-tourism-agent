@@ -17,49 +17,28 @@ class PlanningService:
     
     def __init__(self):
         """初始化路线规划服务"""
-        # 提示词路径已移动到 app/prompt/ 目录
-        import os
-        # 获取项目根目录（从 domain/services/ 向上三级到 app/，再进入 prompt/）
-        current_dir = os.path.dirname(__file__)
-        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+        file_path = os.path.abspath(__file__)
+        app_dir = os.path.dirname(os.path.dirname(os.path.dirname(file_path)))
         prompt_dir = os.path.join(app_dir, "prompt")
-        self.system_prompt_path = os.path.join(prompt_dir, "tour-route-planning-system-prompt.txt")
+        # 路线规划服务，用于生成旅游路线规划
+        self.system_prompt_path = os.path.join(prompt_dir, "route-planning-system-prompt.txt")
         self.user_prompt_path = os.path.join(prompt_dir, "route-planning-user-prompt.txt")
     
     def _load_system_prompt(self) -> str:
         """加载系统提示词"""
-        if os.path.exists(self.system_prompt_path):
-            with open(self.system_prompt_path, 'r', encoding='utf-8') as f:
+        try:
+            with open(self.system_prompt_path, "r", encoding="utf-8") as f:
                 return f.read()
-        else:
-            return """你是一位智能旅游规划助手，能够根据用户指定的城市或地区，自动生成合理、详细且实用的旅游攻略。"""
+        except FileNotFoundError:
+            raise FileNotFoundError(f"系统提示词文件不存在: {self.system_prompt_path}")
     
     def _load_user_prompt_template(self) -> str:
         """加载用户提示词模板"""
-        if os.path.exists(self.user_prompt_path):
-            with open(self.user_prompt_path, 'r', encoding='utf-8') as f:
+        try:
+            with open(self.user_prompt_path, "r", encoding="utf-8") as f:
                 return f.read()
-        else:
-            # 默认提示词
-            return """请根据以下信息生成旅游攻略：
-
-天气信息：
-{weather_info}
-
-景点信息：
-{poi_info}
-
-用户需求：
-{user_message}
-
-请生成一份详细的旅游攻略，包括：
-1. 天气概览与出行提示
-2. 每日行程规划（第1天、第2天...）
-3. 每个景点的简短介绍
-4. 根据天气给出出行建议
-
-直接输出完整的旅游建议，不要显式描述执行步骤。
-"""
+        except FileNotFoundError:
+            raise FileNotFoundError(f"用户提示词文件不存在: {self.user_prompt_path}")
     
     def _get_last_user_input(self, state: "AgentState") -> str:
         """从 state 中提取最后一条用户输入"""
