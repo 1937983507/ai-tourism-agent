@@ -56,5 +56,5 @@ Thumbs.db
 
 .ipynb_checkpoints
 
-
+*.pem
 
