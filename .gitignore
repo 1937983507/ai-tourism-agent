@@ -56,5 +56,7 @@ Thumbs.db
 
 .ipynb_checkpoints
 
+# 公钥与私钥
+secrets/
 *.pem
 
