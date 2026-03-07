@@ -35,9 +35,10 @@ def fetch_poi_node(state: AgentState) -> dict:
     
     # 从状态中获取城市信息
     city_name = state.get("city_name")
+    day_count = state.get("day_count", 7)
     
     # 调用数据服务获取景点信息
-    poi_data = _data_service.fetch_poi(city_name, poi_count=10)
+    poi_data = _data_service.fetch_poi(city_name, day_count*3)
     result["poi_data"] = poi_data
     
     return result
