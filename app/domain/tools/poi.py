@@ -28,6 +28,12 @@ def poi_search(city_name: str, poi_count: int = 10) -> str:
         if poi_count is None or poi_count <= 0:
             poi_count = 10
         
+        # 处理城市名称：如果尾缀含有"市"，则删除
+        city_name = city_name.strip()
+        if city_name.endswith("市"):
+            city_name = city_name[:-1]
+            # logger.info(f"城市名称处理后: {city_name}")
+        
         # 通过 HTTP 调用 Java 服务的工具接口
         java_url = f"{settings.java_service_url}/api/tools/poi"
         params = {
