@@ -20,7 +20,7 @@
 - **状态持久化**：支持 SQLite/PostgreSQL Checkpoint，实现会话恢复
 
 ### 🛠️ 工具集成
-- **天气预报**：集成 OpenWeather API
+- **天气预报**：支持 OpenWeather API 和和风天气 API，可通过环境变量切换
 - **景点搜索**：通过 HTTP 调用 Java 后端服务
 - **结构化输出**：自动生成 JSON 格式的旅游攻略
 
@@ -38,31 +38,160 @@ pip install -r requirements.txt
 
 ```bash
 # OpenAI 配置
-OPENAI_API_KEY=your_api_key_here
+OPENAI_API_KEY=your_api_key
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL_NAME=gpt-4o-mini
 OPENAI_MAX_OUTPUT_TOKENS=4096
 
+# Checkpoint 配置（默认使用内存，可选 memory | sqlite | postgres）
+CHECKPOINT_TYPE=sqlite
+SQLITE_DB_PATH=./checkpoints.db
+POSTGRES_CONN_STRING=postgresql://user:password@localhost:5432/dbname
+
 # Java 服务配置
+# 请启动 https://github.com/1937983507/ai-tourism-backend 后端项目
 JAVA_SERVICE_URL=http://localhost:8080
 JAVA_SERVICE_INTERNAL_TOKEN=your_internal_token
 
-# 天气 API 配置（可选）
-OPENWEATHER_API_KEY=your_weather_api_key
+# 本Agent服务配置
+AGENT_PORT=8291
+AGENT_HOST=0.0.0.0
 
-# Checkpoint 配置
-CHECKPOINT_TYPE=memory  # memory | sqlite | postgres
-CHECKPOINT_SQLITE_PATH=./data/checkpoints.db
+# 天气 API 配置
+# 天气服务提供商: "openweathermap" 或 "qweather" (和风天气)
+WEATHER_PROVIDER=qweather
+
+# Open Weather API Key（当WEATHER_PROVIDER=openweathermap 时需要配置）
+# 申请地址：http://api.openweathermap.org
+OPENWEATHER_API_KEY=your_openweather_api_key
+
+# 和风天气的各项配置 (当 WEATHER_PROVIDER=qweather 时需要配置)
+# 申请地址: https://dev.qweather.com/
+QWEATHER_API_HOST=your_qweather_api_host
+QWEATHER_JWT_PROJECT_ID=your_qweather_jwt_project_id
+QWEATHER_JWT_KEY_ID=your_qweather_jwt_key_id
+QWEATHER_JWT_PRIVATE_KEY_PATH=./secrets/qweather_private_key.pem
+
+# 日志配置
+LOG_LEVEL=INFO
+LOG_DIR=./logs
+LOG_RETENTION_DAYS=7
+LOG_ROTATION=00:00
+LOG_ENCODING=utf-8
+
+# LangSmith 配置
+# 是否启动 LangSmith 监测
+LANGSMITH_ENABLED=true
+# API Key 在 https://smith.langchain.com/ 申请
+LANGSMITH_API_KEY="xxx"
+LANGSMITH_PROJECT=ai-tourism-agent
+LANGSMITH_WORKSPACE_ID="Workspace 1"
+
 ```
+
+#### 和风天气 JWT 配置详细步骤
+
+如果选择使用和风天气（`WEATHER_PROVIDER=qweather`），需要先生成密钥对并申请 JWT。步骤如下：
+
+##### 步骤 1: 生成 ED25519 密钥对
+
+**Linux / macOS 系统：**
+
+```bash
+# 生成私钥
+openssl genpkey -algorithm ED25519 -out ed25519-private.pem
+
+# 从私钥提取公钥
+openssl pkey -pubout -in ed25519-private.pem -out ed25519-public.pem
+```
+
+**Windows 系统：**
+
+如果已安装 OpenSSL（可通过 Git Bash 或 WSL 使用），命令与 Linux 相同：
+
+```bash
+# 在 Git Bash 或 WSL 中执行
+openssl genpkey -algorithm ED25519 -out ed25519-private.pem
+openssl pkey -pubout -in ed25519-private.pem -out ed25519-public.pem
+```
+
+如果未安装 OpenSSL，可以使用 PowerShell（需要 Windows 10 1809+）：
+
+```powershell
+# 使用 PowerShell 生成 ED25519 密钥对
+$key = [System.Security.Cryptography.ECDsa]::Create([System.Security.Cryptography.ECCurve]::CreateFromFriendlyName("Ed25519"))
+$privateKeyBytes = $key.ExportECPrivateKey()
+$publicKeyBytes = $key.ExportSubjectPublicKeyInfo()
+
+# 保存私钥（需要转换为 PEM 格式，建议使用 OpenSSL）
+# 或者直接使用 OpenSSL for Windows: https://slproweb.com/products/Win32OpenSSL.html
+```
+
+> **推荐**：Windows 用户建议安装 [OpenSSL for Windows](https://slproweb.com/products/Win32OpenSSL.html) 或使用 WSL/Git Bash。
+
+##### 步骤 2: 保存私钥文件
+
+将生成的 `ed25519-private.pem` 文件保存到项目的 `secrets/` 目录。
+
+```bash
+# 创建 secrets 目录
+mkdir -p secrets
+
+# 移动私钥文件（保留完整 PEM 格式，包括 -----BEGIN PRIVATE KEY----- 和 -----END PRIVATE KEY-----）
+mv ed25519-private.pem secrets/qweather_private_key.pem
+
+# 确保私钥文件权限安全（Linux/macOS）
+chmod 600 secrets/qweather_private_key.pem
+```
+
+**重要提示**：
+- 私钥文件必须包含完整的 PEM 格式（包括 `-----BEGIN PRIVATE KEY-----` 和 `-----END PRIVATE KEY-----` 及中间所有行）
+- 不要只复制中间的内容，必须保留完整的 PEM 格式
+- 私钥文件应添加到 `.gitignore`，不要提交到版本控制
+
+##### 步骤 3: 上传公钥到和风天气官网
+
+1. 访问 [和风天气开发者平台](https://dev.qweather.com/)
+2. 登录账号，进入项目管理
+3. 创建新项目或选择现有项目
+4. 在项目设置中，上传 `ed25519-public.pem` 公钥文件
+5. 记录下系统分配的：
+   - **Project ID**（对应 `QWEATHER_JWT_PROJECT_ID`）
+   - **Key ID**（对应 `QWEATHER_JWT_KEY_ID`）
+   - **API Host**（对应 `QWEATHER_API_HOST`，可能是网关地址或官方域名）
+
+##### 步骤 4: 配置环境变量
+
+在 `.env` 文件中配置：
+
+```bash
+# 启用和风天气
+WEATHER_PROVIDER=qweather
+
+# 和风天气配置
+QWEATHER_API_HOST=https://your_api_host                    # 从官网获取的 API Host
+QWEATHER_JWT_PROJECT_ID=your_project_id                    # 从官网获取的 Project ID
+QWEATHER_JWT_KEY_ID=your_key_id                           # 从官网获取的 Key ID
+QWEATHER_JWT_PRIVATE_KEY_PATH=./secrets/qweather_private_key.pem  # 私钥文件路径
+```
+
+##### 步骤 5: 验证配置
+
+重启服务后，系统会自动：
+1. 读取私钥文件
+2. 使用 Project ID 和 Key ID 生成 JWT Token
+3. 使用 JWT Token 调用和风天气 API
+
+如果配置正确，日志中会显示和风天气调用成功的信息。
 
 ### 3. 运行服务
 
 ```bash
-# 方式1：使用 uvicorn（推荐）
-uvicorn app.main:app --host 0.0.0.0 --port 8291 --reload
-
-# 方式2：使用 run.py
+# 方式1：使用 run.py
 python run.py
+
+# 方式2：使用 uvicorn
+uvicorn app.main:app --host 0.0.0.0 --port 8291 --reload
 ```
 
 ### 4. 测试接口

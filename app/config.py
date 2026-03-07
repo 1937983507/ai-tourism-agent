@@ -40,7 +40,21 @@ class Settings(BaseSettings):
     log_encoding: str = "utf-8"  # 日志文件编码
     
     # 天气 API 配置
+    # 天气服务提供商: "openweathermap" (默认) 或 "qweather" (和风天气)
+    weather_provider: str = "openweathermap"
+
+    # Open Weather API Key
     openweather_api_key: Optional[str] = None
+    
+    # 和风天气 JWT 鉴权配置
+    # - qweather_api_host: 和风网关或官方域名，例如 https://your_api_host
+    # - qweather_jwt_project_id: Project ID，用于 JWT payload.sub
+    # - qweather_jwt_key_id: Key ID，用于 JWT header.kid
+    # - qweather_jwt_private_key_path: 私钥 PEM 文件路径，用于签名 JWT（EdDSA）
+    qweather_api_host: Optional[str] = None
+    qweather_jwt_project_id: Optional[str] = None
+    qweather_jwt_key_id: Optional[str] = None
+    qweather_jwt_private_key_path: Optional[str] = None
     
     # LangSmith 配置
     langsmith_enabled: bool = True  # 是否启用 LangSmith 追踪

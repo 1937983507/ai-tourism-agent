@@ -179,11 +179,10 @@ class ConversationGuidanceService:
 
             # 构建提示词（从 prompt 文件读取）
             extraction_prompt_template = self._load_extraction_user_prompt_template()
-            extraction_prompt = (
-                extraction_prompt_template
-                .replace("{context_str}", context_str)
-                .replace("{conversation_history}", conversation_history_str)
-                .replace("{user_input}", user_input)
+            extraction_prompt = extraction_prompt_template.format(
+                context_str=context_str,
+                conversation_history=conversation_history_str,
+                user_input=user_input
             )
             extraction_system_prompt = self._load_extraction_system_prompt()
             
@@ -265,11 +264,10 @@ class ConversationGuidanceService:
 
             # 构建提示词（从 prompt 文件读取）
             guidance_user_prompt_template = self._load_guidance_user_prompt_template()
-            guidance_user_prompt = (
-                guidance_user_prompt_template
-                .replace("{context_str}", context_str)
-                .replace("{conversation_history}", conversation_history_str)
-                .replace("{user_input}", user_input)
+            guidance_user_prompt = guidance_user_prompt_template.format(
+                context_str=context_str,
+                conversation_history=conversation_history_str,
+                user_input=user_input
             )
             
             # 创建 LLM 实例

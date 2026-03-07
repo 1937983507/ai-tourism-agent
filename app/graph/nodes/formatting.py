@@ -20,6 +20,7 @@ def format_output_node(state: AgentState) -> dict:
     try:
         # 获取路线规划内容
         route_plan = state.get("route_plan")
+        poi_data = state.get("poi_data")
         session_id = state.get("session_id")
         user_id = state.get("user_id")
         
@@ -28,7 +29,7 @@ def format_output_node(state: AgentState) -> dict:
             return result
         
         # 调用格式化服务生成 JSON
-        formatting_result = _formatting_service.format_to_json(route_plan)
+        formatting_result = _formatting_service.format_to_json(route_plan, poi_data=poi_data)
         
         # 如果有错误，返回错误信息（但保留原始数据）
         if formatting_result.get("error"):

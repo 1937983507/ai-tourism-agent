@@ -104,11 +104,10 @@ class LLMIntentService:
             history_block = f"{history_context}\n" if history_context else ""
 
             # 构建用户提示（从 prompt 文件读取）
-            user_prompt = (
-                user_prompt_template
-                .replace("{user_input}", user_input)
-                .replace("{context_block}", context_block)
-                .replace("{history_block}", history_block)
+            user_prompt = user_prompt_template.format(
+                user_input=user_input,
+                context_block=context_block,
+                history_block=history_block
             )
             
             # 创建 LLM 实例（使用 JSON 格式）
