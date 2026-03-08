@@ -34,7 +34,10 @@ pip install -r requirements.txt
 
 ### 2. 配置环境变量
 
-复制 `.env.example` 为 `.env`，并配置以下参数：
+```bash
+# 复制 `.env.example` 为 `.env`，准备配置参数
+cp .env.example .env
+```
 
 ```bash
 # OpenAI 配置
@@ -186,12 +189,84 @@ QWEATHER_JWT_PRIVATE_KEY_PATH=./secrets/qweather_private_key.pem  # 私钥文件
 
 ### 3. 运行服务
 
-```bash
-# 方式1：使用 run.py
-python run.py
+#### 方式一：本地开发（使用 `run.py`）
 
-# 方式2：使用 uvicorn
+```bash
+python run.py
+```
+
+#### 方式二：本地开发（直接使用 `uvicorn`）
+
+```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8291 --reload
+```
+
+#### 方式三：Linux 生产环境使用 `systemd` 守护进程运行（推荐）
+
+在 Linux 服务器上，建议使用 `systemd` 以服务方式常驻运行，支持**自动重启**和**开机自启**。
+
+**1）创建 systemd 服务文件**
+
+```bash
+sudo vim /etc/systemd/system/ai-tourism-agent.service
+```
+
+写入内容示例（请根据你的实际部署路径和运行用户进行调整）：
+
+```ini
+[Unit]
+Description=AI Tourism Agent
+After=network.target
+
+[Service]
+# 建议使用非 root 用户运行，例如 www-data 或你的业务账号
+User=root
+# 项目所在目录，例如 /www/wwwroot/ai/ai-tourism-agent
+WorkingDirectory=/www/wwwroot/ai/ai-tourism-agent
+# 使用虚拟环境里的 python + -m uvicorn，更稳妥
+ExecStart=/usr/local/bin/uvicorn app.main:app --host 0.0.0.0 --port 8291 --workers 4
+# 异常退出时自动重启
+Restart=always
+RestartSec=3
+# 可选：如果需要，自行设置 PYTHONPATH 等环境变量
+Environment="PYTHONPATH=/path/to/ai-tourism-agent"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**2）让 `systemd` 识别并启用服务**
+
+```bash
+sudo systemctl daemon-reload
+# 设置开机自启
+sudo systemctl enable ai-tourism-agent
+```
+
+**3）启动 / 停止 / 重启 / 查看状态**
+
+```bash
+# 启动服务
+sudo systemctl start ai-tourism-agent
+
+# 停止服务
+sudo systemctl stop ai-tourism-agent
+
+# 重启服务（修改配置后常用）
+sudo systemctl restart ai-tourism-agent
+
+# 查看服务运行状态
+sudo systemctl status ai-tourism-agent
+```
+
+**4）查看运行日志（排查启动问题）**
+
+```bash
+# 查看最近 50 行日志
+journalctl -u ai-tourism-agent -n 50 --no-pager
+
+# 持续跟踪日志输出（类似 tail -f）
+journalctl -u ai-tourism-agent -f
 ```
 
 ### 4. 测试接口
