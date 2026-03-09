@@ -1,30 +1,287 @@
-# AI-Tourism Agent Service
+## AI 智能旅游规划助手（Agent 服务）
 
-基于 LangGraph 的智能旅游规划 Agent 服务，提供智能意图识别、对话引导、多轮对话、并行数据获取和个性化路线规划功能。
+> **访问地址**：[https://www.aitrip.chat/](https://www.aitrip.chat/)  
+> **欢迎体验智能旅游规划服务！**
+
+## 目录
+
+- [项目简介](#项目简介)
+- [核心特性](#核心特性)
+- [演示](#演示)
+- [核心特性与架构特点](#核心特性与架构特点)
+- [系统整体架构](#系统整体架构)
+- [技术栈与依赖](#技术栈与依赖)
+- [目录结构](#目录结构)
+- [快速开始](#快速开始)
+- [配置说明](#配置说明)
+- [接口与集成](#接口与集成)
+- [开发扩展指南](#开发扩展指南)
+- [TODO](#todo)
+- [参考文档](#参考文档)
+- [License](#license)
+- [联系与贡献](#联系与贡献)
+
+## 项目简介
+
+**AI-Tourism Agent** 是智能旅游规划系统中的 **AI 规划引擎**，基于 **LangGraph、FastAPI、OpenAI** 等技术栈构建。
+
+本服务接收后端转发的用户对话请求，通过 LangGraph 工作流完成意图识别、对话引导、并行获取天气与景点数据，并生成个性化旅游路线与结构化攻略。不直接面向用户，仅与 **ai-tourism-backend** 通过 HTTP/SSE 通信；会话与历史由后端管理，本服务负责 Checkpoint 状态持久化以支持多轮规划。
 
 ## 核心特性
 
-### 🎯 智能意图识别
-- **LLM 意图识别**：使用大语言模型识别用户意图（旅游/非旅游/需要引导）
-- **信息提取**：自动提取城市、天数等关键信息
-- **规则匹配降级**：LLM 失败时自动降级到规则匹配策略
+- **意图识别与对话引导**：LLM 意图识别 + 规则降级，支持多轮对话以补齐城市/天数等用户需求信息
+- **高性能链路**：天气与 POI 并行获取、SSE 流式输出、SQLite/PostgreSQL 会话持久化
+- **工具与输出**：天气（OpenWeather/和风）、POI 调用后端接口，输出 JSON 攻略并可回调后端落库
 
-### 💬 智能对话引导
-- **多轮对话**：通过友好对话引导用户提供完整信息
-- **上下文理解**：基于对话历史理解用户意图
-- **分步提取**：先提取信息，再生成引导回复
 
-### 🚀 高性能架构
-- **并行数据获取**：天气和景点信息并行获取，提升响应速度
-- **流式响应**：支持 SSE 流式输出，实时展示规划过程
-- **状态持久化**：支持 SQLite/PostgreSQL Checkpoint，实现会话恢复
+---
 
-### 🛠️ 工具集成
-- **天气预报**：支持 OpenWeather API 和和风天气 API，可通过环境变量切换
-- **景点搜索**：通过 HTTP 调用 Java 后端服务
-- **结构化输出**：自动生成 JSON 格式的旅游攻略
+## 演示
+
+### 前端效果截图
+![前端效果图](./assets/界面图.png)
+
+### 视频效果
+![演示视频](./assets/demo.gif)
+
+---
+
+## 核心特性与架构特点
+
+### 1. 智能意图识别
+
+- **LLM 意图识别**：使用大语言模型识别用户意图（旅游 / 非旅游 / 需要引导），并抽取城市、天数等关键信息；支持与下游对话引导、并行数据获取无缝衔接。
+- **规则匹配降级**：当 LLM 调用失败或超时时，自动降级到基于规则的 `SimpleIntentExtractor`，保证基础可用的同时减少对单一模型的依赖。
+
+### 2. 智能对话引导
+
+- **多轮对话**：在信息不完整时，通过友好追问（如「请问您想去哪个城市？」「计划玩几天？」）引导用户补全信息，再进入规划流程。
+- **上下文理解**：基于 LangGraph 的 Checkpoint 与对话历史，在同一会话内保持上下文，避免重复询问。
+- **分步处理**：先由 LLM 从当前轮次提取结构化信息（JSON），再生成面向用户的自然语言回复，便于后续扩展与调试。
+
+### 3. 高性能架构
+
+- **并行数据获取**：在意图为「旅游且信息完整」时，通过 LangGraph 的并行节点同时请求天气与 POI，缩短首字响应时间（例如由串行约 5s 降至约 3s）。
+- **流式响应**：使用 SSE 将 LLM 生成内容实时推送到后端再至前端，提升体验；格式与后端约定一致，便于网关透传。
+- **状态持久化**：支持 memory / sqlite / postgres 三种 Checkpoint 后端，单机推荐 sqlite，多实例或分布式部署可选用 postgres，便于会话恢复与水平扩展。
+
+### 4. 工具集成
+
+- **天气预报**：支持 OpenWeather API 与和风天气 API，通过环境变量 `WEATHER_PROVIDER` 切换；和风需配置 JWT 与私钥，详见配置说明。
+- **景点搜索**：通过 HTTP 调用 **ai-tourism-backend** 提供的 POI 接口（如 `/tool/poi`），依赖后端完成鉴权与数据源封装。
+- **结构化输出**：规划结果生成 JSON 格式旅游攻略，并可通过回调接口提交给后端落库或展示，便于前端地图与行程展示。
+
+---
+
+## 系统整体架构
+
+**AI 智能旅游规划系统**采用前后端分离架构。用户在前端输入自然语言后，请求经过后端 API 服务转发到 **Python Agent 服务**，由 Agent 服务调用工具获取天气、景点等信息，生成旅游路线规划。后端 API 服务负责处理流式返回、会话管理和数据持久化。
+
+> 默认联调端口（以各项目配置为准）：前端 `3001`，后端 `8290`，Agent `8291`。本服务由后端网关转发请求，不直接对公网暴露时请注意防火墙与鉴权配置。
+
+### 分层架构
+
+整体为前端 → 后端 → Agent 三层，下图**侧重 Agent** 结构；前端与后端仅作概要。
+
+```
+┌─────────────────────────────────────────┐
+│  前端 (Vue) · ai-tourism-frontend       │
+│  - 对话与地图组件                        │
+│  - SSE 消费                             │
+│  - 会话列表                             │
+│  - 用户认证                             │
+└─────────────────┬──────────────────────┘
+                  │ HTTP/SSE
+┌─────────────────▼────────────────────────────┐
+│   后端 API 服务 (Spring Boot)                 │
+│   ai-tourism-backend                          │
+│   - API 网关与请求路由                         │
+│   - 会话与消息管理                             │
+│   - 用户认证与权限管理                         │
+└─────────────────┬────────────────────────────┘
+                  │ HTTP/SSE
+┌─────────────────▼───────────────────────────────────────────────────────┐
+│  Python Agent 服务 · ai-tourism-agent                                   │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │ API 层 (FastAPI)                                                  │   │
+│  │  - /agent/health, /agent/tools                                    │   │
+│  │  - /agent/chat-stream (SSE), /agent/chat                          │   │
+│  │  - 参数校验 (ChatRequest)、EventSourceResponse                    │   │
+│  └───────────────────────────┬─────────────────────────────────────┘   │
+│  ┌───────────────────────────▼─────────────────────────────────────┐   │
+│  │ 工作流层 (LangGraph)                                               │   │
+│  │  - 状态 (AgentState)、节点编排、条件路由                            │   │
+│  │  - Checkpoint 持久化 (memory/sqlite/postgres)                      │   │
+│  └───────────────────────────┬─────────────────────────────────────┘   │
+│  ┌───────────────────────────▼─────────────────────────────────────┐   │
+│  │ 领域层 (Services)                                                 │   │
+│  │  - 意图识别、对话引导、通用回复、数据获取、路线规划、格式化、回调     │   │
+│  └───────────────────────────┬─────────────────────────────────────┘   │
+│  ┌───────────────────────────▼─────────────────────────────────────┐   │
+│  │ 基础设施层                                                        │   │
+│  │  - LLM 工厂、HTTP 客户端(调后端 POI)、Checkpoint、天气/POI 工具     │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### LangGraph 工作流程图
+
+```
+用户输入
+  ↓
+┌─────────────────────────────────────────────────────────┐
+│ validate_input_node (输入验证)                            │
+│  - 检查输入长度                                           │
+│  - 敏感词过滤                                             │
+└─────────────────────────────────────────────────────────┘
+  ↓
+┌─────────────────────────────────────────────────────────┐
+│ llm_intent_recognition_node (LLM 意图识别)                │
+│  - 调用: LLMIntentService.recognize_intent(state)        │
+│  - 识别意图类型（tourism/non_tourism/tourism_need_guidance）│
+│  - 提取城市和天数                                         │
+│  - 失败时降级到 SimpleIntentExtractor（规则匹配）         │
+└─────────────────────────────────────────────────────────┘
+  ↓
+┌─────────────────────────────────────────────────────────┐
+│ 路由判断 (check_intent_result)                           │
+└─────────────────────────────────────────────────────────┘
+  ↓                    ↓                    ↓
+tourism          tourism_need_guidance   non_tourism
+(信息完整)         (信息不完整)            (非旅游意图)
+  ↓                    ↓                    ↓
+parallel_trigger   conversation_guidance  general_response
+  ↓                    ↓                    ↓
+┌──────────┐      ┌─────────────────────────────────────┐
+│ 并行执行  │      │ conversation_guidance_node          │
+├──────────┤      │  - 步骤1: LLM 提取信息（JSON）       │
+│ weather  │      │  - 步骤2: 生成引导回复               │
+│ poi      │      │  - 检查信息完整性                    │
+└──────────┘      └─────────────────────────────────────┘
+  ↓                    ↓                    ↓
+plan_route        complete? → parallel    END
+  ↓                    ↓
+format_output     incomplete? → END
+  ↓                (等待下一轮输入)
+callback_java
+  ↓
+END
+```
+
+### 架构说明
+
+- **前端（ai-tourism-frontend）**：`Vue 3` 应用，负责交互、地图渲染与对话展示；通过 `SSE` 调用后端 `POST /ai_assistant/chat-stream` 实时消费模型输出
+
+- **后端 API 服务（ai-tourism-backend）**：
+  - **接入层（Controller + 鉴权）**：基于 `Spring Boot REST`，使用 `Sa-Token` 进行登录与权限校验，提供 RESTful API 接口
+  - **业务服务层**：会话管理、消息入库、流式返回转发、API 网关功能
+  - **数据访问层（MyBatis）**：通过 `MyBatis` 实现数据持久化，管理会话表、消息表、用户表等
+
+- **Python Agent 服务（ai-tourism-agent）**：
+  - **AI 对话处理**：LangGraph 工作流编排
+  - **工具调用管理**：Function Call + MCP 工具
+  - **状态管理**：使用 LangGraph Checkpoint 机制
+  - **流式响应**：SSE 流式返回
+  - **结构化输出**：JSON Schema 输出
+
+
+
+---
+
+## 技术栈与依赖
+
+| 技术分类 | 技术栈 | 版本/说明 |
+|---------|--------|----------|
+| **Web 框架** | FastAPI | 0.115+ |
+| **ASGI 服务器** | Uvicorn | 0.32+ |
+| **工作流引擎** | LangGraph | 0.2+ |
+| **LLM 集成** | LangChain / LangChain-OpenAI | 0.3+ / 0.2+ |
+| **LLM** | OpenAI API | 推荐 GPT-4o-mini，可配置 |
+| **Checkpoint** | LangGraph-Checkpoint-SQLite | 0.1+（可选 PostgreSQL） |
+| **HTTP 客户端** | httpx | 0.27+（调用后端 POI 等） |
+| **配置与校验** | Pydantic / Pydantic-Settings | 2.9+ / 2.0+ |
+| **日志** | Loguru / Structlog | 0.7+ / 24.1+ |
+| **可观测** | LangSmith | 可选，用于追踪与调试 |
+| **JWT / 加密** | PyJWT[crypto]、cryptography | 和风天气 JWT 等 |
+
+> 详见 [requirements.txt](requirements.txt) 依赖配置。 
+
+---
+
+## 目录结构
+
+```
+ai-tourism-agent/
+├── app/
+│   ├── main.py                      # FastAPI 应用入口
+│   ├── config.py                    # 配置管理（Pydantic Settings）
+│   │
+│   ├── api/                         # API 路由层
+│   │   ├── routes/
+│   │   │   └── agent.py            # Agent 相关接口
+│   │   └── models/
+│   │       └── request.py          # 请求/响应模型
+│   │
+│   ├── domain/                      # 领域层（业务逻辑）
+│   │   └── services/
+│   │       ├── simple_intent_extractor.py      # 规则匹配提取器
+│   │       ├── llm_intent_service.py           # LLM 意图识别
+│   │       ├── conversation_guidance_service.py # 对话引导
+│   │       ├── general_response_service.py     # 通用回复
+│   │       ├── data_service.py                 # 数据获取
+│   │       ├── planning_service.py             # 路线规划
+│   │       ├── formatting_service.py           # 格式化输出
+│   │       ├── validation_service.py           # 输入验证
+│   │       └── callback_service.py             # Java 回调
+│   │
+│   ├── graph/                       # LangGraph 工作流层
+│   │   ├── state.py                # 状态定义
+│   │   ├── workflow.py             # 工作流编排
+│   │   └── nodes/                  # 工作流节点
+│   │       ├── validation.py       # 输入验证节点
+│   │       ├── llm_intent.py       # LLM 意图识别节点
+│   │       ├── conversation_guidance.py  # 对话引导节点
+│   │       ├── general_response.py # 通用回复节点
+│   │       ├── parallel_trigger.py # 并行触发节点
+│   │       ├── data_fetch.py       # 数据获取节点
+│   │       ├── planning.py         # 路线规划节点
+│   │       ├── formatting.py       # 格式化输出节点
+│   │       ├── error.py            # 错误处理节点
+│   │       └── routing.py          # 路由判断函数
+│   │
+│   ├── infrastructure/              # 基础设施层
+│   │   ├── llm/
+│   │   │   └── factory.py          # LLM 工厂
+│   │   ├── checkpoint/
+│   │   │   └── saver.py            # Checkpoint 管理
+│   │   └── http/
+│   │       └── client.py           # HTTP 客户端
+│   │
+│   └── tools/                       # 工具层
+│       ├── weather.py              # 天气工具
+│       └── poi.py                  # POI 搜索工具
+│
+├── prompt/                          # Prompt 模板目录
+│   ├── intent-recognition-system-prompt.txt
+│   ├── conversation-guidance-system-prompt.txt
+│   ├── general-response-system-prompt.txt
+│   ├── tour-route-planning-system-prompt.txt
+│   └── route-planning-user-prompt.txt
+│
+├── data/                            # 数据目录
+│   └── checkpoints.db              # SQLite Checkpoint 数据库
+│
+├── requirements.txt                 # Python 依赖
+├── .env.example                     # 环境变量示例
+├── run.py                          # 启动脚本
+└── README.md                       # 项目说明
+```
+
+---
 
 ## 快速开始
+
+> 建议启动顺序：`ai-tourism-agent` → `ai-tourism-backend` → `ai-tourism-frontend`。
 
 ### 1. 安装依赖
 
@@ -51,9 +308,9 @@ CHECKPOINT_TYPE=sqlite
 SQLITE_DB_PATH=./checkpoints.db
 POSTGRES_CONN_STRING=postgresql://user:password@localhost:5432/dbname
 
-# Java 服务配置
+# Java 服务配置（工具接口由后端提供）
 # 请启动 https://github.com/1937983507/ai-tourism-backend 后端项目
-JAVA_SERVICE_URL=http://localhost:8080
+JAVA_SERVICE_URL=http://localhost:8290
 JAVA_SERVICE_INTERNAL_TOKEN=your_internal_token
 
 # 本Agent服务配置
@@ -297,196 +554,29 @@ curl -X POST http://localhost:8291/agent/chat \
   }'
 ```
 
-## 项目架构
 
-### 目录结构
+---
 
-```
-ai-tourism-agent/
-├── app/
-│   ├── main.py                      # FastAPI 应用入口
-│   ├── config.py                    # 配置管理（Pydantic Settings）
-│   │
-│   ├── api/                         # API 路由层
-│   │   ├── routes/
-│   │   │   └── agent.py            # Agent 相关接口
-│   │   └── models/
-│   │       └── request.py          # 请求/响应模型
-│   │
-│   ├── domain/                      # 领域层（业务逻辑）
-│   │   └── services/
-│   │       ├── simple_intent_extractor.py      # 规则匹配提取器
-│   │       ├── llm_intent_service.py           # LLM 意图识别
-│   │       ├── conversation_guidance_service.py # 对话引导
-│   │       ├── general_response_service.py     # 通用回复
-│   │       ├── data_service.py                 # 数据获取
-│   │       ├── planning_service.py             # 路线规划
-│   │       ├── formatting_service.py           # 格式化输出
-│   │       ├── validation_service.py           # 输入验证
-│   │       └── callback_service.py             # Java 回调
-│   │
-│   ├── graph/                       # LangGraph 工作流层
-│   │   ├── state.py                # 状态定义
-│   │   ├── workflow.py             # 工作流编排
-│   │   └── nodes/                  # 工作流节点
-│   │       ├── validation.py       # 输入验证节点
-│   │       ├── llm_intent.py       # LLM 意图识别节点
-│   │       ├── conversation_guidance.py  # 对话引导节点
-│   │       ├── general_response.py # 通用回复节点
-│   │       ├── parallel_trigger.py # 并行触发节点
-│   │       ├── data_fetch.py       # 数据获取节点
-│   │       ├── planning.py         # 路线规划节点
-│   │       ├── formatting.py       # 格式化输出节点
-│   │       ├── error.py            # 错误处理节点
-│   │       └── routing.py          # 路由判断函数
-│   │
-│   ├── infrastructure/              # 基础设施层
-│   │   ├── llm/
-│   │   │   └── factory.py          # LLM 工厂
-│   │   ├── checkpoint/
-│   │   │   └── saver.py            # Checkpoint 管理
-│   │   └── http/
-│   │       └── client.py           # HTTP 客户端
-│   │
-│   └── tools/                       # 工具层
-│       ├── weather.py              # 天气工具
-│       └── poi.py                  # POI 搜索工具
-│
-├── prompt/                          # Prompt 模板目录
-│   ├── intent-recognition-system-prompt.txt
-│   ├── conversation-guidance-system-prompt.txt
-│   ├── general-response-system-prompt.txt
-│   ├── tour-route-planning-system-prompt.txt
-│   └── route-planning-user-prompt.txt
-│
-├── data/                            # 数据目录
-│   └── checkpoints.db              # SQLite Checkpoint 数据库
-│
-├── requirements.txt                 # Python 依赖
-├── .env.example                     # 环境变量示例
-├── run.py                          # 启动脚本
-└── README.md                       # 项目说明
-```
+## 配置说明
 
-### 架构设计
+### Checkpoint 与会话恢复
 
-#### 分层架构
+- `CHECKPOINT_TYPE=memory|sqlite|postgres`
+- 单机推荐 `sqlite`；分布式/多实例可选 `postgres`
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     API 层 (FastAPI)                     │
-│  - 接收 HTTP 请求                                         │
-│  - 参数验证                                               │
-│  - 流式响应（SSE）                                        │
-└─────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────┐
-│                  工作流层 (LangGraph)                     │
-│  - 状态管理（AgentState）                                 │
-│  - 节点编排（显式定义节点和边）                            │
-│  - 条件路由                                               │
-│  - Checkpoint 持久化                                      │
-└─────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────┐
-│                   领域层 (Services)                       │
-│  - 业务逻辑实现                                           │
-│  - LLM 调用封装                                           │
-│  - 数据处理                                               │
-│  - 统一接口：接收 State 对象                              │
-└─────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────┐
-│                 基础设施层 (Infrastructure)                │
-│  - LLM 工厂（OpenAI）                                     │
-│  - HTTP 客户端（Java 服务调用）                           │
-│  - Checkpoint 管理（SQLite/PostgreSQL）                   │
-│  - 工具实现（天气、POI）                                   │
-└─────────────────────────────────────────────────────────┘
-```
+### 天气服务提供商
 
-#### 工作流程图
+- `WEATHER_PROVIDER=openweathermap|qweather`
+- 使用和风天气时，需要按上文「和风天气 JWT 配置详细步骤」准备私钥与相关变量
 
-```
-用户输入
-  ↓
-┌─────────────────────────────────────────────────────────┐
-│ validate_input_node (输入验证)                            │
-│  - 检查输入长度                                           │
-│  - 敏感词过滤                                             │
-└─────────────────────────────────────────────────────────┘
-  ↓
-┌─────────────────────────────────────────────────────────┐
-│ llm_intent_recognition_node (LLM 意图识别)                │
-│  - 调用: LLMIntentService.recognize_intent(state)        │
-│  - 识别意图类型（tourism/non_tourism/tourism_need_guidance）│
-│  - 提取城市和天数                                         │
-│  - 失败时降级到 SimpleIntentExtractor（规则匹配）         │
-└─────────────────────────────────────────────────────────┘
-  ↓
-┌─────────────────────────────────────────────────────────┐
-│ 路由判断 (check_intent_result)                           │
-└─────────────────────────────────────────────────────────┘
-  ↓                    ↓                    ↓
-tourism          tourism_need_guidance   non_tourism
-(信息完整)         (信息不完整)            (非旅游意图)
-  ↓                    ↓                    ↓
-parallel_trigger   conversation_guidance  general_response
-  ↓                    ↓                    ↓
-┌──────────┐      ┌─────────────────────────────────────┐
-│ 并行执行  │      │ conversation_guidance_node          │
-├──────────┤      │  - 步骤1: LLM 提取信息（JSON）       │
-│ weather  │      │  - 步骤2: 生成引导回复               │
-│ poi      │      │  - 检查信息完整性                    │
-└──────────┘      └─────────────────────────────────────┘
-  ↓                    ↓                    ↓
-plan_route        complete? → parallel    END
-  ↓                    ↓
-format_output     incomplete? → END
-  ↓                (等待下一轮输入)
-callback_java
-  ↓
-END
-```
+### 与后端（Java/Spring Boot）集成
 
-## 核心设计
+- Agent 通过 `JAVA_SERVICE_URL` 调用后端工具接口（如 POI 查询）
+- 后端默认端口为 `8290`（以 `ai-tourism-backend` 配置为准）
 
-### 1. 意图识别与对话引导
+---
 
-系统采用 **LLM 意图识别 + 规则匹配降级** 的双重策略，并通过分步处理实现精准的信息提取和友好的对话引导。
-
-### 2. Service 层接口设计
-
-**设计原则**：Service 层直接接收 `AgentState` 对象，自己提取需要的信息。
-
-**优势**：
-- ✅ Node 层极简（从 20+ 行减少到 1 行）
-- ✅ Service 层自主决定需要什么数据
-- ✅ 易于扩展，新增 state 字段不影响 Node 层
-- ✅ 减少重复代码
-- ✅ 职责清晰：Node 负责流程控制，Service 负责业务逻辑
-
-### 3. 并行数据获取
-
-使用 LangGraph 的并行节点特性，同时获取天气和景点信息：
-
-**性能提升**：
-- 串行执行：天气 API (2s) + POI API (3s) = 5s
-- 并行执行：max(2s, 3s) = 3s
-- **提升 40% 响应速度**
-
-### 4. Checkpoint 状态持久化
-
-支持多种 Checkpoint 后端：
-- `memory`: 内存（开发环境）
-- `sqlite`: SQLite（单机生产）
-- `postgres`: PostgreSQL（分布式生产）
-
-### 5. 流式响应
-
-使用 SSE (Server-Sent Events) 实现流式输出，实时展示 LLM 生成过程，提升用户体验。
-
-## API 接口
+## 接口与集成
 
 ### 1. 健康检查
 
@@ -512,11 +602,11 @@ POST /agent/chat-stream
 POST /agent/chat
 ```
 
-详细接口文档请参考代码注释。
+详细请求/响应说明、示例与约定见 [doc/API.md](doc/API.md)。
 
-## 对话示例
+### 对话示例
 
-### 示例1：完整信息输入
+#### 示例1：完整信息输入
 
 ```
 用户: 我想去北京玩5天
@@ -534,7 +624,7 @@ POST /agent/chat
 ...
 ```
 
-### 示例2：需要引导的对话
+#### 示例2：需要引导的对话
 
 ```
 用户: 我想去旅游
@@ -547,7 +637,7 @@ POST /agent/chat
 助手: 好的，我已经了解您想去北京玩5天。正在为您规划路线...
 ```
 
-### 示例3：非旅游意图
+#### 示例3：非旅游意图
 
 ```
 用户: 今天天气怎么样？
@@ -556,99 +646,9 @@ POST /agent/chat
 我会为您提供该城市的天气预报和旅游建议。
 ```
 
-## 项目状态
+---
 
-### ✅ 已完成功能
-
-#### 1. 核心工作流
-- ✅ LangGraph 工作流编排（显式定义节点和边）
-- ✅ 输入验证节点（长度检查、敏感词过滤）
-- ✅ LLM 意图识别节点（识别旅游/非旅游/需要引导）
-- ✅ 对话引导节点（多轮对话，信息提取）
-- ✅ 并行数据获取节点（天气 + POI）
-- ✅ 路线规划节点（基于天气和景点生成攻略）
-- ✅ 格式化输出节点（生成 JSON 结构化数据）
-- ✅ 错误处理节点
-- ✅ 条件路由控制
-
-#### 2. 意图识别与对话引导
-- ✅ LLM 意图识别（主策略）
-- ✅ 规则匹配降级（SimpleIntentExtractor）
-- ✅ 信息提取与回复生成分离
-- ✅ 多轮对话支持
-- ✅ 上下文理解
-
-#### 3. Service 层优化
-- ✅ 统一接口设计（接收 State 对象）
-- ✅ Node 层简化（从 20+ 行减少到 1 行）
-- ✅ 降低耦合度
-- ✅ 提高可维护性和可扩展性
-
-#### 4. Checkpoint 机制
-- ✅ 内存 Checkpoint（开发环境）
-- ✅ SQLite Checkpoint（单机生产）
-- ✅ PostgreSQL Checkpoint（分布式生产）
-- ✅ 会话恢复功能
-
-#### 5. 工具集成
-- ✅ 天气预报工具（OpenWeather API）
-- ✅ POI 搜索工具（HTTP 调用 Java 服务）
-- ✅ 工具管理器
-
-#### 6. API 接口
-- ✅ 健康检查接口（GET /agent/health）
-- ✅ 工具列表接口（GET /agent/tools）
-- ✅ 流式对话接口（POST /agent/chat-stream，SSE）
-- ✅ 非流式对话接口（POST /agent/chat）
-
-#### 7. 配置与部署
-- ✅ 环境变量配置（.env）
-- ✅ Pydantic Settings 配置管理
-- ✅ 完整的项目目录结构
-- ✅ 模块化设计
-- ✅ 代码规范
-
-### ⏳ 待优化（按优先级）
-
-#### 高优先级
-1. **错误处理增强**
-   - [ ] 完善异常处理逻辑
-   - [ ] 添加重试机制（指数退避）
-   - [ ] 超时控制
-
-#### 中优先级
-2. **监控与日志**
-   - [ ] 结构化日志（JSON 格式）
-   - [ ] 请求追踪（Trace ID）
-   - [ ] 性能指标收集
-
-3. **性能优化**
-   - [ ] 工具调用缓存（Redis）
-   - [ ] 连接池优化
-   - [ ] 消息窗口修剪策略
-
-#### 低优先级
-4. **功能扩展**
-   - [ ] 支持更多城市
-   - [ ] 支持自定义偏好（美食、购物等）
-   - [ ] 支持多语言
-
-5. **长期记忆**（可选）
-   - [ ] 向量数据库集成
-   - [ ] 用户偏好记忆
-   - [ ] 语义检索
-
-## 技术栈
-
-- **框架**: FastAPI 0.104+
-- **工作流**: LangGraph 0.2+
-- **LLM**: OpenAI GPT-4o-mini
-- **数据库**: SQLite / PostgreSQL（Checkpoint）
-- **HTTP 客户端**: httpx
-- **配置管理**: Pydantic Settings
-- **日志**: Python logging
-
-## 开发指南
+## 开发扩展指南
 
 ### 可视化工作流图
 
@@ -684,16 +684,91 @@ graph = await init_agent_graph()
 2. 实现工具逻辑
 3. 在需要的 Service 中调用
 
+### 安全注意事项
+
+1. **密钥与私钥文件**：
+   - ⚠️ 不要提交 `.env` 与 `secrets/` 下的私钥文件到版本控制
+   - ✅ 使用 `.env.example` 作为模板，只提交占位符
+
+2. **服务间调用安全**：
+   - ✅ 建议为后端工具接口开启并校验内部 Token（`JAVA_SERVICE_INTERNAL_TOKEN`）
+   - ✅ Agent 对外暴露时，推荐仅通过后端统一入口访问
+
+3. **生产环境建议**：
+   - 使用 HTTPS、合理设置超时/重试
+   - 关注 SSE 长连接资源占用，必要时做限流与并发控制
+
+### 常见问题（FAQ）
+
+#### 1）POI/工具调用失败（连接拒绝 / 401 / 超时）
+
+- 确认 `ai-tourism-backend` 已启动，且 `JAVA_SERVICE_URL` 指向可达地址（默认 `http://localhost:8290`）
+- 如果后端开启了内部鉴权，确认 `JAVA_SERVICE_INTERNAL_TOKEN` 与后端配置一致
+
+#### 2）路线规划没有记忆/会话无法恢复
+
+- 确认 `CHECKPOINT_TYPE` 与对应配置已正确填写（`sqlite` 需要 `SQLITE_DB_PATH`，`postgres` 需要 `POSTGRES_CONN_STRING`）
+
+---
+
+## TODO
+
+### 1. 稳定性与错误处理
+- [ ] 完善异常处理与统一错误码（工具调用 / LLM / 回调 / SSE）
+- [ ] 添加重试机制（指数退避 + 可配置最大重试次数）
+- [ ] 超时控制（请求级/工具级/LLM 级）与取消机制
+
+### 2. 性能优化
+- [ ] 工具调用缓存（Redis，可按城市/日期/查询参数分层缓存）
+- [ ] HTTP 连接池与并发限制（防止工具调用打爆后端）
+- [ ] 消息窗口修剪策略（多轮对话 token 成本可控）
+
+### 3. 规划质量与路线优化
+- [ ] 路线绕路优化：基于距离/通勤时间对每日 POI 排序与聚类，减少折返
+- [ ] 约束与评分函数：将「预算/节奏/人群类型/偏好」显式纳入规划目标（可解释的打分）
+- [ ] 支持“二次优化”指令：用户提出“更紧凑/更休闲/少走路/少换酒店”等需求时可增量重排
+
+### 4. 多轮对话与偏好确认
+- [ ] 偏好收集：通过多轮问答确认 **偏好**、**人数**、**预算**、**节奏**（以及可选：亲子/老人、出行方式、是否自驾/是否带行李）
+- [ ] 槽位抽取与校验：将偏好结构化落到 `AgentState`，缺失项自动追问、冲突项澄清
+- [ ] 偏好记忆：同一会话内保持一致；跨会话可选写入后端用户画像（需鉴权与隐私策略）
+
+### 5. 工具调用可视化（前端联动）
+- [ ] 将工具调用过程（工具名、入参、耗时、结果摘要、错误）以事件流形式下发，前端渲染展示
+- [ ] 设计统一事件协议：区分「模型输出 token」「工具调用开始/结束」「检索命中/未命中」「规划阶段切换」
+- [ ] 支持“调试模式”：允许在 UI 上展开查看完整工具入参/原始结果（默认脱敏）
+
+### 6. RAG 与检索兜底（城市景点知识）
+- [ ] 向量数据库集成：按城市构建景点知识库（景点介绍/开放时间/交通/适合人群/注意事项等）
+- [ ] 检索优先策略：若命中（相似度阈值 + TopK），将检索到的内容直接交给大模型生成输出（带引用片段）
+- [ ] 未命中兜底：若检索不到则调用 MCP/Function Call 进行外部检索补全，并将结果回灌入知识库
+
+
+
+---
+
 ## 参考文档
 
 - [LangGraph 官方文档](https://langchain-ai.github.io/langgraph/)
 - [FastAPI 官方文档](https://fastapi.tiangolo.com/)
 - [OpenAI API 文档](https://platform.openai.com/docs/)
 
+---
+
 ## License
 
-MIT License
+本项目仅供学习使用，**禁止未经授权的商用**。
 
-## 联系方式
+---
 
-如有问题或建议，请提交 Issue 或 Pull Request。
+## 联系与贡献
+
+欢迎任何建议、反馈与贡献！如需交流或有合作意向，欢迎通过以下方式联系：
+
+- **微信**：`13859211947`
+- **GitHub**：提交 Issue 或 PR 到本仓库
+- **前端项目**：[ai-tourism-frontend 仓库](https://github.com/1937983507/ai-tourism-frontend)
+- **后端项目**：[ai-tourism-backend 仓库](https://github.com/1937983507/ai-tourism-backend) - Spring Boot 后端服务，提供 API 网关、会话管理、用户认证等功能
+
+如有 Bug、需求或想法，欢迎随时提出，我们会积极响应。
+也欢迎 AI 应用开发相关的同学一起交流讨论。
