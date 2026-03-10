@@ -55,7 +55,6 @@ class GeneralResponseService:
         """
         try:
             # 从 state 中提取信息
-            user_input = self._get_last_user_input(state)
             conversation_history = state.get("messages", [])
             
             # 加载系统提示词
@@ -73,11 +72,8 @@ class GeneralResponseService:
             # 添加对话历史（如果有）
             if conversation_history:
                 # 只取最近几条消息作为上下文
-                for msg in conversation_history[-3:]:
+                for msg in conversation_history[-20:]:
                     messages.append(msg)
-            
-            # 添加当前用户输入
-            messages.append(HumanMessage(content=user_input))
             
             # 调用 LLM
             response = llm.invoke(messages)

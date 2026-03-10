@@ -87,27 +87,13 @@ class LLMIntentService:
             if current_day_count:
                 context_parts.append(f"已知天数：{current_day_count}")
             
-            # 构建对话历史上下文
-            history_context = ""
-            if conversation_history:
-                history_messages = []
-                for msg in conversation_history[-4:]:  # 只取最近4条消息作为上下文
-                    if hasattr(msg, 'content'):
-                        role = "用户" if isinstance(msg, HumanMessage) else "助手"
-                        history_messages.append(f"{role}：{msg.content}")
-                if history_messages:
-                    history_context = "\n对话历史：\n" + "\n".join(history_messages)
-            
+            # 构建对话信息上下文
             context_str = "\n".join(context_parts) if context_parts else ""
-            
-            context_block = f"\n\n上下文信息：\n{context_str}\n" if context_str else "\n"
-            history_block = f"{history_context}\n" if history_context else ""
+            context_block = f"{context_str}\n" if context_str else "\n"
 
             # 构建用户提示（从 prompt 文件读取）
             user_prompt = user_prompt_template.format(
-                user_input=user_input,
                 context_block=context_block,
-                history_block=history_block
             )
             
             # 创建 LLM 实例（使用 JSON 格式）
@@ -116,18 +102,24 @@ class LLMIntentService:
                 max_tokens=500,
                 response_format={"type": "json_object"}
             )
-            
+
             # 构建消息
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ]
+            messages = [SystemMessage(content=system_prompt)]
+
+            # 添加对话历史（如果有）
+            if conversation_history:
+                # 只取最近几条消息作为上下文
+                for msg in conversation_history[-20:]:
+                    messages.append(msg)
+            
+            # 添加用户提示词
+            messages.append(HumanMessage(content=user_prompt))
             
             # 调用 LLM
             response = llm.invoke(messages)
             response_content = response.content if hasattr(response, 'content') else str(response)
             
-            # 解析 JSON 响应
+            # 尝试解析 JSON 响应
             try:
                 result = json.loads(response_content)
                 
