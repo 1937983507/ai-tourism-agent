@@ -1,4 +1,4 @@
-"""Agent 服务封装"""
+﻿"""Agent 服务封装"""
 from typing import AsyncIterator, Dict, Any
 from langchain_core.messages import HumanMessage
 from loguru import logger
@@ -24,78 +24,57 @@ class AgentService:
             "user_id": user_id,
             "messages": [HumanMessage(content=message)]
         }
-        
+
         logger.info(f"调用 graph.astream_events，thread_id: {session_id}, 新消息: {message[:50]}...")
-        
+
+        # 需要捕获 AI 回复的节点名称集合（非流式，直接取节点输出的 messages）
+        GUIDANCE_NODES = {"conversation_guidance", "general_response", "general_response"}
+        # plan_route 节点走流式 token，单独处理
+        in_plan_route = False
+        plan_route_streamed = ""
+
         try:
             from langchain_core.messages import AIMessage
-            accumulated_content = ""
-            last_message_count = 0
-            in_plan_route = False
-            plan_route_accumulated = ""
 
             async for event in self.graph.astream_events(
                 initial_state, config=config, version="v2"
             ):
                 event_type = event.get("event")
                 event_name = event.get("name", "")
-                # logger.info(f"event_type: {event_type}, event_name: {event_name}")
 
-                # 标记进入 plan_route 节点，后续只捕获该节点的 LLM 流式输出
+                # ---- plan_route: 流式捕获 LLM token ----
                 if event_type == "on_chain_start" and event_name == "plan_route":
                     in_plan_route = True
-                    plan_route_accumulated = ""
+                    plan_route_streamed = ""
 
-                # 节点结束：退出 plan_route 标记，或图结束时提前返回
-                if event_type == "on_chain_end":
-                    if event_name == "plan_route":
-                        in_plan_route = False
-                    elif event_name == "__end__":
-                        return
-
-                # 实时捕获 plan_route 节点内 LLM 的流式 token，逐块 yield 给前端
                 if event_type == "on_chat_model_stream" and in_plan_route:
                     chunk = event.get("data", {}).get("chunk")
                     if chunk and hasattr(chunk, "content") and chunk.content:
-                        content = chunk.content
-                        yield content
-                        plan_route_accumulated += content
-                        accumulated_content += content
+                        yield chunk.content
+                        plan_route_streamed += chunk.content
 
-                # 节点结束时处理输出：错误、plan_route 补全、其他节点的 AI 消息
-                if event_type == "on_chain_end":
-                    output = event.get("data", {}).get("output")
-                    if output and isinstance(output, dict):
-                        if output.get("error"):
-                            yield f"\n错误: {output.get('error', '处理过程中出现错误')}"
-                            return
+                if event_type == "on_chain_end" and event_name == "plan_route":
+                    in_plan_route = False
+                    # 用节点完整输出补全流式可能截断的部分
+                    output = event.get("data", {}).get("output") or {}
+                    route_plan = output.get("route_plan", "")
+                    if isinstance(route_plan, str) and len(route_plan) > len(plan_route_streamed):
+                        yield route_plan[len(plan_route_streamed):]
 
-                        # plan_route 流式可能不完整，用完整 route_plan 补全未输出的部分
-                        if event_name == "plan_route":
-                            route_plan = output.get("route_plan")
-                            if route_plan and isinstance(route_plan, str):
-                                accumulated_length = len(plan_route_accumulated)
-                                if len(route_plan) > accumulated_length:
-                                    for char in route_plan[accumulated_length:]:
-                                        yield char
-                                    plan_route_accumulated = route_plan
-                                    accumulated_content = route_plan
+                # ---- 引导 / 通用回复节点：直接取节点 return 的新 AIMessage ----
+                if event_type == "on_chain_end" and event_name in GUIDANCE_NODES:
+                    output = event.get("data", {}).get("output") or {}
+                    if output.get("error"):
+                        yield f"\n错误: {output['error']}"
+                        return
+                    # output["messages"] 是节点 return dict 里的列表，只含本节点新增的消息
+                    for msg in output.get("messages", []):
+                        if isinstance(msg, AIMessage) and msg.content:
+                            yield msg.content
 
-                        # 非 plan_route 节点（如 conversation_guidance 等）的 AI 回复，增量 yield
-                        messages = output.get("messages", [])
-                        if messages and len(messages) > last_message_count:
-                            new_messages = messages[last_message_count:]
-                            last_message_count = len(messages)
-                            if event_name != "plan_route":
-                                for msg in new_messages:
-                                    if isinstance(msg, AIMessage) and hasattr(msg, "content"):
-                                        content = msg.content
-                                        if isinstance(content, str) and content and content not in accumulated_content:
-                                            if len(content) > len(accumulated_content):
-                                                new_content = content[len(accumulated_content):]
-                                                accumulated_content = content
-                                                for char in new_content:
-                                                    yield char
+                # ---- 图执行结束 ----
+                if event_type == "on_chain_end" and event_name == "__end__":
+                    return
 
         except Exception as e:
             logger.exception(f"流式对话异常: {e}")
