@@ -53,17 +53,15 @@ class ConversationGuidanceService:
         """
         try:
             # 从 state 中提取信息
-            user_input = self._get_last_user_input(state)
             conversation_history = state.get("messages", [])
             current_city = state.get("city_name")
             current_day_count = state.get("day_count")
 
             # 仅负责生成引导回复：城市/天数等关键信息由上游意图识别节点统一提取并写入 state。
             response_content = self._generate_guidance_response(
-                conversation_history,
                 current_city,
                 current_day_count,
-                user_input
+                conversation_history,
             )
             
             logger.info(f"对话引导完成: city={current_city}, day_count={current_day_count}")
@@ -100,25 +98,11 @@ class ConversationGuidanceService:
                 "messages": [AIMessage(content=response)]
             }
     
-    def _get_last_user_input(self, state: "AgentState") -> str:
-        """从 state 中提取最后一条用户输入"""
-        messages = state.get("messages", [])
-        if not messages:
-            return ""
-        
-        # 从后往前找最后一条用户消息
-        for msg in reversed(messages):
-            if isinstance(msg, HumanMessage):
-                return msg.content if hasattr(msg, 'content') else str(msg)
-        
-        return ""
-    
     def _generate_guidance_response(
         self,
         current_city: Optional[str],
         current_day_count: Optional[int],
         conversation_history: List,
-        user_input: str
     ) -> str:
         """
         生成引导回复
@@ -150,7 +134,6 @@ class ConversationGuidanceService:
             guidance_user_prompt_template = self._load_guidance_user_prompt_template()
             guidance_user_prompt = guidance_user_prompt_template.format(
                 context_str=context_str,
-                # user_input=user_input
             )
 
             # 构建消息
