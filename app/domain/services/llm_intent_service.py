@@ -1,7 +1,7 @@
-"""LLM 意图识别服务"""
+﻿"""LLM 意图识别服务"""
 import json
 import os
-from typing import Dict, Any, Optional, TYPE_CHECKING
+from typing import Dict, Any, Optional, Tuple, TYPE_CHECKING
 from loguru import logger
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.infrastructure.llm.factory import LLMFactory
@@ -124,7 +124,7 @@ class LLMIntentService:
                 return msg.content if hasattr(msg, 'content') else str(msg)
         return ""
 
-    def _validate_city_name(self, city_name: Optional[str], user_input: str = "") -> Optional[str]:
+    def _validate_city_name(self, city_name: Optional[str], user_input: str = "") -> Tuple[Optional[str], Optional[str]]:
         """
         校验 city_name 是否为合法的具体城市，非法则返回 None。
 
@@ -134,49 +134,55 @@ class LLMIntentService:
         3. 检查 city_name 本身是否包含多个城市
         """
         if city_name is None:
-            return None
+            return None, "missing_city"
         cleaned = city_name.strip().rstrip("市区县")
 
-        # 优先检查原始 user_input 中的城市数量
+        # 检查原始 user_input 中的城市数量
         if user_input:
             matched_in_input = [city for city in self._KNOWN_CITIES if city in user_input]
             if len(matched_in_input) >= 2:
                 logger.warning(
                     f"user_input 中包含多个城市 {matched_in_input}，city_name '{city_name}' 置为 null"
                 )
-                return None
+                return None, "multi_city"
 
         # 检查 city_name 本身是否为非法地理区域词
         if cleaned in self._INVALID_CITY_KEYWORDS:
             logger.warning(f"city_name '{city_name}' 为非法地理区域词，已置为 null")
-            return None
+            return None, "ambiguous_city"
 
         # 检查 city_name 本身是否拼合了多个城市（如 LLM 返回"成都重庆"）
         matched_in_name = [city for city in self._KNOWN_CITIES if city in cleaned]
         if len(matched_in_name) >= 2:
             logger.warning(f"city_name '{city_name}' 包含多个城市 {matched_in_name}，已置为 null")
-            return None
+            return None, "multi_city"
+        
+        # TODO 检查 city_name 是否是在中国境外
 
-        return cleaned if cleaned else None
+        if not cleaned:
+            return None, "missing_city"
+        return cleaned, None
 
-
-    def _validate_day_count(self, day_count) -> "Optional[int]":
+    def _validate_day_count(self, day_count) -> Tuple[Optional[int], Optional[str]]:
         """
         校验并归一化 day_count。
         - 转换为整数
         - 值域必须在 [1, 30] 以内，否则返回 None
         """
         if day_count is None or day_count == "null":
-            return None
+            return None, "missing_day"
         try:
             value = int(day_count)
         except (ValueError, TypeError):
             logger.warning(f"day_count '{day_count}' 无法转换为整数，已置为 null")
-            return None
-        if value < 1 or value > 30:
+            return None, "ambiguous_day"
+        if value < 1:
             logger.warning(f"day_count '{day_count}' 超出合法范围 [1, 30]，已置为 null")
-            return None
-        return value
+            return None, "invalid_day_zero"
+        if value > 30:
+            logger.warning(f"day_count '{day_count}' 超出合法范围 [1, 30]，已置为 null")
+            return None, "invalid_day_overflow"
+        return value, None
 
     def recognize_intent(self, state: "AgentState") -> Dict[str, Any]:
         """
@@ -248,37 +254,77 @@ class LLMIntentService:
             # 尝试解析 JSON 响应
             try:
                 result = json.loads(response_content)
-                
+
                 # 验证和标准化结果
                 intent_type = result.get("intent_type", "tourism_need_guidance")
                 city_name = result.get("city_name")
                 day_count = result.get("day_count")
                 confidence = result.get("confidence", 0.5)
-
-                # 处理 null 值，并进行后置合法性校验（传入 user_input 做多城市检测）
-                if city_name == "null" or city_name is None:
-                    city_name = None
-                else:
-                    city_name = self._validate_city_name(city_name, user_input)
-
-                # city_name 被校验为非法时，若当前是 tourism 则降级为 tourism_need_guidance
-                if city_name is None and intent_type == "tourism":
-                    intent_type = "tourism_need_guidance"
-
-                # 校验 day_count 合法性（值域 [1, 30]）
-                day_count = self._validate_day_count(day_count)
+                llm_guidance_reason = result.get("guidance_reason")
 
                 logger.info(
                     f"意图识别结果: intent_type={intent_type}, city_name={city_name}, "
-                    f"day_count={day_count}, confidence={confidence}"
+                    f"day_count={day_count}, confidence={confidence}, llm_guidance_reason={llm_guidance_reason}"
+                )
+
+                # 开始检查 LLM 的 city_name 是否合法，以及获取 city_reason
+                if city_name == "null" or city_name is None:
+                    # 若是 city_name 为空
+                    if llm_guidance_reason in ("ambiguous_city", "multi_city", "foreign_city"):
+                        # 若 LLM 认为需要引导的理由为 用户给出的城市异常，则继承其原因
+                        city_name, city_reason = None, llm_guidance_reason
+                    else:
+                        # 否则 city_reasom 为 missing_city
+                        city_name, city_reason = None, "missing_city"
+                else:
+                    # 若是 city_name 不为空，则 city_reasom 可能是 missing_city、ambiguous_city、multi_city
+                    city_name, city_reason = self._validate_city_name(city_name, user_input)
+                    
+
+                # 开始检查 LLM 的 day_count 是否合法，以及获取 day_reason
+                if day_count == "null" or day_count is None:
+                    # 若是 day_count 为空
+                    if llm_guidance_reason in ("invalid_day_zero", "invalid_day_overflow", "ambiguous_day"):
+                        # 若 LLM 认为需要引导的理由为 用户给出的天数异常，则继承其原因
+                        day_count, day_reason = None, llm_guidance_reason
+                    else:
+                        # 否则 day_reason 为 missing_day
+                        day_count, day_reason = None, "missing_day"
+                else:
+                    # 若是 day_count 不为空，则 day_reason 可能是 invalid_day_zero、invalid_day_overflow、ambiguous_day
+                    day_count, day_reason = self._validate_day_count(day_count)
+
+
+                # 组合推断最终 guidance_reason：城市问题优先，仅两者均缺失才返回 missing_both
+                if city_reason and day_reason:
+                    guidance_reason = "missing_both" if (
+                        city_reason == "missing_city" and day_reason == "missing_day"
+                    ) else city_reason
+                elif city_reason:
+                    guidance_reason = city_reason
+                elif day_reason:
+                    guidance_reason = day_reason
+                else:
+                    guidance_reason = None
+
+
+                # city_name 为空 或 day_count 为空，若当前是 tourism 则降级为 tourism_need_guidance
+                if (city_name is None or day_count is None) and intent_type == "tourism":
+                    intent_type = "tourism_need_guidance"
+
+                logger.info(
+                    f"意图识别结果（程序修正）: intent_type={intent_type}, city_name={city_name}, "
+                    f"day_count={day_count}, confidence={confidence}, guidance_reason={guidance_reason}"
                 )
 
                 return {
                     "intent_type": intent_type,
                     "city_name": city_name,
                     "day_count": day_count,
-                    "confidence": confidence
+                    "confidence": confidence,
+                    "guidance_reason": guidance_reason,
                 }
+
             except json.JSONDecodeError as e:
                 # 意图识别的 JSON 解析失败
                 logger.error(f"解析 JSON 响应失败: {e}, 响应内容: {response_content}")
@@ -297,10 +343,12 @@ class LLMIntentService:
         city, day_count = SimpleIntentExtractor.extract_from_input(user_input)
 
         # 对降级提取的城市也做合法性校验，同样传入 user_input
-        city = self._validate_city_name(city, user_input)
+        city, _ = self._validate_city_name(city, user_input)
 
         # 校验 day_count 合法性（值域 [1, 30]）
-        day_count = self._validate_day_count(day_count)
+        day_count, _ = self._validate_day_count(day_count)
+
+        # TODO 这里还是得获取到 guidance_reason 并进行返回
 
         tourism_keywords = ["旅游", "旅行", "游玩", "景点", "攻略", "行程", "路线"]
         is_tourism = any(keyword in user_input for keyword in tourism_keywords)

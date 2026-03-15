@@ -1,5 +1,4 @@
-"""LLM 意图识别节点"""
-from typing import Dict, Any
+﻿"""LLM 意图识别节点"""
 from loguru import logger
 from app.graph.state import AgentState
 from app.domain.services.llm_intent_service import LLMIntentService
@@ -31,8 +30,13 @@ def llm_intent_recognition_node(state: AgentState) -> dict:
             result["day_count"] = intent_result["day_count"]
         elif state.get("day_count"):
             result["day_count"] = state.get("day_count")
-        
-        logger.info(f"LLM 意图识别完成: intent_type={result.get('intent_type')}, city={result.get('city_name')}, days={result.get('day_count')}")
+
+        # guidance_reason 只取本轮意图识别的结果，不继承上一轮旧值
+        # 若本轮为 None（信息已完整），不写入 result，让 state 自然保留或清空
+        if intent_result.get("guidance_reason"):
+            result["guidance_reason"] = intent_result["guidance_reason"]
+ 
+        # logger.info(f"LLM 意图识别完成: intent_type={result.get('intent_type')}, city={result.get('city_name')}, days={result.get('day_count')}, guidance_reason={result.get('guidance_reason')}")
         
     except Exception as e:
         logger.exception(f"LLM 意图识别节点异常: {e}")
