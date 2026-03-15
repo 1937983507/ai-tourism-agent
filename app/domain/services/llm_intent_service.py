@@ -113,6 +113,25 @@ class LLMIntentService:
 
         return cleaned if cleaned else None
 
+
+    def _validate_day_count(self, day_count) -> "Optional[int]":
+        """
+        校验并归一化 day_count。
+        - 转换为整数
+        - 值域必须在 [1, 30] 以内，否则返回 None
+        """
+        if day_count is None or day_count == "null":
+            return None
+        try:
+            value = int(day_count)
+        except (ValueError, TypeError):
+            logger.warning(f"day_count '{day_count}' 无法转换为整数，已置为 null")
+            return None
+        if value < 1 or value > 30:
+            logger.warning(f"day_count '{day_count}' 超出合法范围 [1, 30]，已置为 null")
+            return None
+        return value
+
     def recognize_intent(self, state: "AgentState") -> Dict[str, Any]:
         """
         使用 LLM 识别用户意图并提取信息
@@ -200,13 +219,8 @@ class LLMIntentService:
                 if city_name is None and intent_type == "tourism":
                     intent_type = "tourism_need_guidance"
 
-                if day_count == "null" or day_count is None:
-                    day_count = None
-                else:
-                    try:
-                        day_count = int(day_count) if day_count else None
-                    except (ValueError, TypeError):
-                        day_count = None
+                # 校验 day_count 合法性（值域 [1, 30]）
+                day_count = self._validate_day_count(day_count)
 
                 logger.info(
                     f"意图识别结果: intent_type={intent_type}, city_name={city_name}, "
@@ -238,6 +252,9 @@ class LLMIntentService:
 
         # 对降级提取的城市也做合法性校验，同样传入 user_input
         city = self._validate_city_name(city, user_input)
+
+        # 校验 day_count 合法性（值域 [1, 30]）
+        day_count = self._validate_day_count(day_count)
 
         tourism_keywords = ["旅游", "旅行", "游玩", "景点", "攻略", "行程", "路线"]
         is_tourism = any(keyword in user_input for keyword in tourism_keywords)
