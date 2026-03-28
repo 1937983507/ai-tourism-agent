@@ -37,20 +37,7 @@ class PlanningService:
                 return f.read()
         except FileNotFoundError:
             raise FileNotFoundError(f"用户提示词文件不存在: {self.user_prompt_path}")
-    
-    def _get_last_user_input(self, state: "AgentState") -> str:
-        """从 state 中提取最后一条用户输入"""
-        messages = state.get("messages", [])
-        if not messages:
-            return ""
         
-        # 从后往前找最后一条用户消息
-        for msg in reversed(messages):
-            if isinstance(msg, HumanMessage):
-                return msg.content if hasattr(msg, 'content') else str(msg)
-        
-        return ""
-    
     def plan_route(self, state: "AgentState") -> Dict[str, Any]:
         """
         生成旅游路线规划
@@ -65,7 +52,9 @@ class PlanningService:
             # 从 state 中提取信息
             weather_info = state.get("weather_data")
             poi_info = state.get("poi_data")
-            user_message = self._get_last_user_input(state)
+            city_name = state.get("city_name")
+            day_count = state.get("day_count")
+            user_message = f"用户将在 {city_name} 旅游 {day_count} 天"
             
             # 加载提示词
             system_prompt = self._load_system_prompt()

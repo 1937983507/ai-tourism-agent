@@ -1,7 +1,7 @@
-"""LLM 意图识别服务"""
+﻿"""LLM 意图识别服务"""
 import json
 import os
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
+from typing import Dict, Any, Optional, Tuple, TYPE_CHECKING
 from loguru import logger
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.infrastructure.llm.factory import LLMFactory
@@ -13,7 +13,80 @@ if TYPE_CHECKING:
 
 class LLMIntentService:
     """LLM 意图识别服务类"""
-    
+
+    # 非法 city_name 关键词集合：大区方向、经济区、省份、模糊方位等
+    _INVALID_CITY_KEYWORDS = {
+        # 大区方向
+        "东北", "西北", "华北", "华南", "华东", "华中", "西南", "东南",
+        # 经济区 / 城市群
+        "长三角", "珠三角", "京津冀", "成渝", "大湾区", "环渤海", "中原城市群",
+        # 省份 / 自治区（省级，不等于城市）
+        "云南", "西藏", "新疆", "四川", "广东", "湖南", "湖北",
+        "贵州", "广西", "福建", "浙江", "江苏", "安徽", "江西",
+        "山东", "山西", "河南", "河北", "陕西", "甘肃", "宁夏",
+        "青海", "内蒙古", "黑龙江", "吉林", "辽宁", "海南",
+        # 直辖市省级别名
+        "京", "沪", "津", "渝",
+        # 特别行政区 / 港澳台
+        "香港", "澳门", "台湾",
+        # 省份组合简称
+        "江浙沪", "陕甘", "川渝", "云贵川", "两广",
+        # 模糊方位
+        "南方", "北方", "内陆", "沿海", "边疆",
+    }
+
+    # 已知城市名集合，用于多城市检测
+    _KNOWN_CITIES = {
+        # 一线 / 新一线
+        "北京", "上海", "广州", "深圳", "成都", "重庆", "杭州", "武汉", "西安",
+        "南京", "天津", "苏州", "长沙", "郑州", "青岛", "沈阳", "宁波", "东莞",
+        "无锡", "昆明", "哈尔滨", "大连", "福州", "厦门", "合肥", "济南", "温州",
+        "南宁", "贵阳", "太原", "石家庄", "长春", "南昌", "兰州", "呼和浩特",
+        "乌鲁木齐", "海口", "西宁", "银川",
+        # 华东城市
+        "嘉兴", "湖州", "金华", "台州", "衢州", "义乌", "镇江", "南通", "盐城",
+        "扬州", "泰州", "徐州", "淮安", "连云港", "宿迁", "常州", "芜湖",
+        "蚌埠", "淮南", "马鞍山", "铜陵", "安庆", "黄山市",
+        # 华南城市
+        "汕尾", "揭阳", "茂名", "阳江", "清远", "韶关", "河源", "梅州",
+        "汕头", "湛江", "北海", "珠海", "中山", "佛山", "江门", "肇庆",
+        "惠州", "潮州", "漳州",
+        # 华中城市
+        "宜昌", "襄阳", "荆州", "黄石", "十堰", "恩施", "神农架",
+        "岳阳", "常德", "株洲", "湘潭", "衡阳", "邵阳", "张家界", "吉首",
+        "洛阳", "开封", "新乡", "焦作", "许昌", "平顶山", "南阳", "信阳",
+        # 华北城市
+        "保定", "唐山", "秦皇岛", "邯郸", "承德", "张家口", "大同", "朔州",
+        "忻州", "临汾", "运城", "晋城", "长治",
+        # 西南城市
+        "遵义", "安顺", "凯里", "铜仁", "兴义", "泸州", "宜宾", "南充",
+        "达州", "绵阳", "德阳", "乐山", "眉山", "雅安", "甘孜", "阿坝",
+        "大理", "丽江", "香格里拉", "昭通", "曲靖", "玉溪", "普洱", "西双版纳",
+        "德宏", "怒江", "迪庆",
+        # 西北城市
+        "宝鸡", "咸阳", "延安", "榆林", "汉中", "安康", "商洛",
+        "天水", "张掖", "嘉峪关", "武威", "酒泉", "敦煌", "甘南",
+        "固原", "中卫", "石嘴山",
+        "吐鲁番", "喀什", "伊宁", "库尔勒", "阿克苏", "和田", "哈密",
+        # 东北城市
+        "延吉", "牡丹江", "伊春", "漠河", "满洲里", "绥芬河", "佳木斯",
+        "鸡西", "鹤岗", "双鸭山", "七台河", "黑河", "大庆", "齐齐哈尔",
+        "通化", "白山", "四平", "辽源", "白城", "松原",
+        "鞍山", "抚顺", "本溪", "丹东", "锦州", "营口", "阜新", "辽阳",
+        "盘锦", "铁岭", "朝阳", "葫芦岛",
+        # 热门旅游目的地
+        "三亚", "三沙", "拉萨", "桂林", "丽江", "张家界", "黄山", "九寨沟",
+        "凤凰", "阳朔", "稻城", "亚丁", "色达", "若尔盖", "格尔木",
+        "西塔", "北戴河", "青岛崂山", "泰山", "武夷山", "庐山", "峨眉山",
+        "黄龙", "西柏坡", "婺源", "宏村", "西递",
+        # 历史文化名城
+        "绍兴", "扬州", "平遥", "大同", "徽州", "歙县",
+        "赣州", "景德镇", "潮州", "泉州",
+        # 沿海 / 海岛
+        "舟山", "象山", "嵊泗", "普陀山", "厦门", "平潭", "东山",
+        "阳江", "汕尾", "北海", "涠洲岛", "三亚", "万宁", "琼海", "文昌",
+    }
+
     def __init__(self):
         """初始化 LLM 意图识别服务"""
         file_path = os.path.abspath(__file__)
@@ -22,7 +95,7 @@ class LLMIntentService:
         # 意图识别服务，用于识别用户意图并提取信息
         self.system_prompt_path = os.path.join(prompt_dir, "intent-recognition-system-prompt.txt")
         self.user_prompt_path = os.path.join(prompt_dir, "intent-recognition-user-prompt.txt")
-    
+
     def _load_system_prompt(self) -> str:
         """加载系统提示词"""
         try:
@@ -38,7 +111,7 @@ class LLMIntentService:
                 return f.read()
         except FileNotFoundError:
             raise FileNotFoundError(f"用户提示词文件不存在: {self.user_prompt_path}")
-    
+
     def _get_last_user_input(self, state: "AgentState") -> str:
         """从 state 中提取最后一条用户输入"""
         messages = state.get("messages", [])
@@ -49,16 +122,75 @@ class LLMIntentService:
         for msg in reversed(messages):
             if isinstance(msg, HumanMessage):
                 return msg.content if hasattr(msg, 'content') else str(msg)
-        
         return ""
-    
+
+    def _validate_city_name(self, city_name: Optional[str], user_input: str = "") -> Tuple[Optional[str], Optional[str]]:
+        """
+        校验 city_name 是否为合法的具体城市，非法则返回 None。
+
+        检查顺序：
+        1. 优先检查 user_input 中是否出现 >=2 个城市（即使模型只提取了一个）
+        2. 检查 city_name 本身是否为非法地理区域词
+        3. 检查 city_name 本身是否包含多个城市
+        """
+        if city_name is None:
+            return None, "missing_city"
+        cleaned = city_name.strip().rstrip("市区县")
+
+        # 检查原始 user_input 中的城市数量
+        if user_input:
+            matched_in_input = [city for city in self._KNOWN_CITIES if city in user_input]
+            if len(matched_in_input) >= 2:
+                logger.warning(
+                    f"user_input 中包含多个城市 {matched_in_input}，city_name '{city_name}' 置为 null"
+                )
+                return None, "multi_city"
+
+        # 检查 city_name 本身是否为非法地理区域词
+        if cleaned in self._INVALID_CITY_KEYWORDS:
+            logger.warning(f"city_name '{city_name}' 为非法地理区域词，已置为 null")
+            return None, "ambiguous_city"
+
+        # 检查 city_name 本身是否拼合了多个城市（如 LLM 返回"成都重庆"）
+        matched_in_name = [city for city in self._KNOWN_CITIES if city in cleaned]
+        if len(matched_in_name) >= 2:
+            logger.warning(f"city_name '{city_name}' 包含多个城市 {matched_in_name}，已置为 null")
+            return None, "multi_city"
+        
+        # TODO 检查 city_name 是否是在中国境外
+
+        if not cleaned:
+            return None, "missing_city"
+        return cleaned, None
+
+    def _validate_day_count(self, day_count) -> Tuple[Optional[int], Optional[str]]:
+        """
+        校验并归一化 day_count。
+        - 转换为整数
+        - 值域必须在 [1, 30] 以内，否则返回 None
+        """
+        if day_count is None or day_count == "null":
+            return None, "missing_day"
+        try:
+            value = int(day_count)
+        except (ValueError, TypeError):
+            logger.warning(f"day_count '{day_count}' 无法转换为整数，已置为 null")
+            return None, "ambiguous_day"
+        if value < 1:
+            logger.warning(f"day_count '{day_count}' 超出合法范围 [1, 30]，已置为 null")
+            return None, "invalid_day_zero"
+        if value > 30:
+            logger.warning(f"day_count '{day_count}' 超出合法范围 [1, 30]，已置为 null")
+            return None, "invalid_day_overflow"
+        return value, None
+
     def recognize_intent(self, state: "AgentState") -> Dict[str, Any]:
         """
         使用 LLM 识别用户意图并提取信息
-        
+
         Args:
             state: Agent 状态对象
-            
+
         Returns:
             包含意图识别结果的字典：
             - intent_type: "tourism" | "non_tourism" | "tourism_need_guidance"
@@ -77,7 +209,7 @@ class LLMIntentService:
             # 加载系统提示词
             system_prompt = self._load_system_prompt()
             user_prompt_template = self._load_user_prompt_template()
-            
+
             # 构建上下文信息
             context_parts = []
             if in_guidance_mode:
@@ -103,7 +235,7 @@ class LLMIntentService:
                 response_format={"type": "json_object"}
             )
 
-            # 构建消息
+            # 构建消息列表
             messages = [SystemMessage(content=system_prompt)]
 
             # 添加对话历史（如果有）
@@ -114,7 +246,7 @@ class LLMIntentService:
             
             # 添加用户提示词
             messages.append(HumanMessage(content=user_prompt))
-            
+
             # 调用 LLM
             response = llm.invoke(messages)
             response_content = response.content if hasattr(response, 'content') else str(response)
@@ -122,56 +254,108 @@ class LLMIntentService:
             # 尝试解析 JSON 响应
             try:
                 result = json.loads(response_content)
-                
+
                 # 验证和标准化结果
                 intent_type = result.get("intent_type", "tourism_need_guidance")
                 city_name = result.get("city_name")
                 day_count = result.get("day_count")
                 confidence = result.get("confidence", 0.5)
-                
-                # 处理 null 值
+                llm_guidance_reason = result.get("guidance_reason")
+
+                logger.info(
+                    f"意图识别结果: intent_type={intent_type}, city_name={city_name}, "
+                    f"day_count={day_count}, confidence={confidence}, llm_guidance_reason={llm_guidance_reason}"
+                )
+
+                # 开始检查 LLM 的 city_name 是否合法，以及获取 city_reason
                 if city_name == "null" or city_name is None:
-                    city_name = None
-                if day_count == "null" or day_count is None:
-                    day_count = None
+                    # 若是 city_name 为空
+                    if llm_guidance_reason in ("ambiguous_city", "multi_city", "foreign_city"):
+                        # 若 LLM 认为需要引导的理由为 用户给出的城市异常，则继承其原因
+                        city_name, city_reason = None, llm_guidance_reason
+                    else:
+                        # 否则 city_reasom 为 missing_city
+                        city_name, city_reason = None, "missing_city"
                 else:
-                    try:
-                        day_count = int(day_count) if day_count else None
-                    except (ValueError, TypeError):
-                        day_count = None
-                
-                logger.info(f"意图识别结果: intent_type={intent_type}, city_name={city_name}, day_count={day_count}, confidence={confidence}")
-                
+                    # 若是 city_name 不为空，则 city_reasom 可能是 missing_city、ambiguous_city、multi_city
+                    city_name, city_reason = self._validate_city_name(city_name, user_input)
+                    
+
+                # 开始检查 LLM 的 day_count 是否合法，以及获取 day_reason
+                if day_count == "null" or day_count is None:
+                    # 若是 day_count 为空
+                    if llm_guidance_reason in ("invalid_day_zero", "invalid_day_overflow", "ambiguous_day"):
+                        # 若 LLM 认为需要引导的理由为 用户给出的天数异常，则继承其原因
+                        day_count, day_reason = None, llm_guidance_reason
+                    else:
+                        # 否则 day_reason 为 missing_day
+                        day_count, day_reason = None, "missing_day"
+                else:
+                    # 若是 day_count 不为空，则 day_reason 可能是 invalid_day_zero、invalid_day_overflow、ambiguous_day
+                    day_count, day_reason = self._validate_day_count(day_count)
+
+
+                # 组合推断最终 guidance_reason：城市问题优先，仅两者均缺失才返回 missing_both
+                if city_reason and day_reason:
+                    guidance_reason = "missing_both" if (
+                        city_reason == "missing_city" and day_reason == "missing_day"
+                    ) else city_reason
+                elif city_reason:
+                    guidance_reason = city_reason
+                elif day_reason:
+                    guidance_reason = day_reason
+                else:
+                    guidance_reason = None
+
+
+                # city_name 为空 或 day_count 为空，若当前是 tourism 则降级为 tourism_need_guidance
+                if (city_name is None or day_count is None) and intent_type == "tourism":
+                    intent_type = "tourism_need_guidance"
+
+                logger.info(
+                    f"意图识别结果（程序修正）: intent_type={intent_type}, city_name={city_name}, "
+                    f"day_count={day_count}, confidence={confidence}, guidance_reason={guidance_reason}"
+                )
+
                 return {
                     "intent_type": intent_type,
                     "city_name": city_name,
                     "day_count": day_count,
-                    "confidence": confidence
+                    "confidence": confidence,
+                    "guidance_reason": guidance_reason,
                 }
+
             except json.JSONDecodeError as e:
+                # 意图识别的 JSON 解析失败
                 logger.error(f"解析 JSON 响应失败: {e}, 响应内容: {response_content}")
                 # 尝试从文本中提取信息
                 return self._fallback_extraction(user_input)
-        
+
         except Exception as e:
             logger.error(f"意图识别异常: {e}", exc_info=True)
             # 降级到简单提取
             user_input = self._get_last_user_input(state)
             return self._fallback_extraction(user_input)
-    
+
     def _fallback_extraction(self, user_input: str) -> Dict[str, Any]:
         """降级提取方法（当 LLM 调用失败时使用规则匹配）"""
         # 使用统一的简单意图提取器
         city, day_count = SimpleIntentExtractor.extract_from_input(user_input)
-        
-        # 简单的关键词匹配判断是否为旅游意图
+
+        # 对降级提取的城市也做合法性校验，同样传入 user_input
+        city, _ = self._validate_city_name(city, user_input)
+
+        # 校验 day_count 合法性（值域 [1, 30]）
+        day_count, _ = self._validate_day_count(day_count)
+
+        # TODO 这里还是得获取到 guidance_reason 并进行返回
+
         tourism_keywords = ["旅游", "旅行", "游玩", "景点", "攻略", "行程", "路线"]
         is_tourism = any(keyword in user_input for keyword in tourism_keywords)
-        
-        # 如果提取到城市或天数，也认为是旅游意图
+
         if city or day_count:
             is_tourism = True
-        
+
         if is_tourism:
             return {
                 "intent_type": "tourism_need_guidance",
@@ -186,5 +370,3 @@ class LLMIntentService:
                 "day_count": None,
                 "confidence": 0.5
             }
-
-
