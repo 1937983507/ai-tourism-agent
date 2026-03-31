@@ -534,7 +534,7 @@ curl http://localhost:8291/agent/health
 curl http://localhost:8291/agent/tools
 
 # 流式对话（推荐）
-curl -X POST http://localhost:8291/agent/chat-stream \
+curl -N -v -X POST http://localhost:8291/agent/chat-stream \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "test_session_001",
