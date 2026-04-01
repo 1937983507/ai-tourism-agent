@@ -1,4 +1,4 @@
-﻿"""LLM 意图识别服务"""
+"""LLM 意图识别服务"""
 import json
 import os
 from typing import Dict, Any, Optional, Tuple, TYPE_CHECKING
@@ -184,6 +184,194 @@ class LLMIntentService:
             return None, "invalid_day_overflow"
         return value, None
 
+    def _build_intent_messages(self, state: "AgentState") -> Tuple[str, list]:
+        """构建意图识别所需的用户输入与消息列表"""
+        user_input = self._get_last_user_input(state)
+        conversation_history = state.get("messages", [])
+        current_city = state.get("city_name")
+        current_day_count = state.get("day_count")
+        in_guidance_mode = state.get("in_guidance_mode", False)
+
+        system_prompt = self._load_system_prompt()
+        user_prompt_template = self._load_user_prompt_template()
+
+        context_parts = []
+        if in_guidance_mode:
+            context_parts.append("注意：当前处于旅游规划引导模式，用户可能在回答引导问题。")
+        if current_city:
+            context_parts.append(f"已知城市：{current_city}")
+        if current_day_count:
+            context_parts.append(f"已知天数：{current_day_count}")
+
+        context_str = "\n".join(context_parts) if context_parts else ""
+        context_block = f"{context_str}\n" if context_str else "\n"
+        user_prompt = user_prompt_template.format(context_block=context_block)
+
+        messages = [SystemMessage(content=system_prompt)]
+        if conversation_history:
+            for msg in conversation_history[-20:]:
+                messages.append(msg)
+        messages.append(HumanMessage(content=user_prompt))
+        return user_input, messages
+
+    def _normalize_llm_result(self, llm_result: Dict[str, Any]) -> Dict[str, Any]:
+        """标准化 LLM 原始识别字段，便于后续统一评估与处理"""
+        # 注意：_apply_rule_validation 会再次调用本方法；若入参已是规范化结构，
+        # 只有 llm_guidance_reason 而无 guidance_reason，必须用后者兜底，否则会丢失引导原因。
+        gr = llm_result.get("guidance_reason")
+        if gr is None:
+            gr = llm_result.get("llm_guidance_reason")
+        return {
+            "intent_type": llm_result.get("intent_type", "tourism_need_guidance"),
+            "city_name": llm_result.get("city_name"),
+            "day_count": llm_result.get("day_count"),
+            "confidence": llm_result.get("confidence", 0.5),
+            "llm_guidance_reason": gr,
+        }
+
+    def _looks_like_non_tourism_chat(self, user_input: str) -> bool:
+        """
+        无旅游关键词、且未出现已知城市名时，更像日常闲聊；
+        用于纠正 LLM 将「我这周很忙」等误判为 tourism_need_guidance。
+        """
+        if not user_input or not user_input.strip():
+            return False
+        tourism_hints = ("旅游", "旅行", "游玩", "景点", "攻略", "行程", "路线", "度假", "出游")
+        if any(h in user_input for h in tourism_hints):
+            return False
+        if any(city in user_input for city in self._KNOWN_CITIES):
+            return False
+        return True
+
+    def _normalize_intent_slots(self, city_name: Any, day_count: Any) -> Tuple[Optional[Any], Optional[Any]]:
+        """将空串、占位 null 视为空槽位，避免走 _validate 得到泛化的 missing_* 覆盖 LLM 细粒度原因。"""
+        if city_name == "null" or (isinstance(city_name, str) and not city_name.strip()):
+            city_name = None
+        if day_count == "null" or (isinstance(day_count, str) and not str(day_count).strip()):
+            day_count = None
+        return city_name, day_count
+
+    def _merge_llm_guidance_over_generic_reasons(
+        self,
+        city_reason: Optional[str],
+        day_reason: Optional[str],
+        llm_guidance_reason: Optional[str],
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """
+        当规则层给出泛化缺失原因（missing_city / missing_day）时，
+        若 LLM 已输出更具体的引导原因，则保留 LLM 语义，避免规则阶段“画蛇添足”。
+        """
+        if not llm_guidance_reason:
+            return city_reason, day_reason
+        if llm_guidance_reason in ("ambiguous_city", "multi_city", "foreign_city"):
+            if city_reason == "missing_city":
+                city_reason = llm_guidance_reason
+        if llm_guidance_reason in ("invalid_day_zero", "invalid_day_overflow", "ambiguous_day"):
+            if day_reason == "missing_day":
+                day_reason = llm_guidance_reason
+        return city_reason, day_reason
+
+    def _apply_rule_validation(self, user_input: str, llm_result: Dict[str, Any]) -> Dict[str, Any]:
+        """在 LLM 原始结果基础上执行程序规则校验"""
+        normalized = self._normalize_llm_result(llm_result)
+        intent_type = normalized["intent_type"]
+        city_name, day_count = self._normalize_intent_slots(
+            normalized["city_name"], normalized["day_count"]
+        )
+        confidence = normalized["confidence"]
+        llm_guidance_reason = normalized["llm_guidance_reason"]
+
+        # 非旅游意图：不生成引导原因，避免出现 missing_both 等与 LLM 不一致的结果
+        if intent_type == "non_tourism":
+            return {
+                "intent_type": "non_tourism",
+                "city_name": None,
+                "day_count": None,
+                "confidence": confidence,
+                "guidance_reason": None,
+            }
+
+        # LLM 将纯闲聊判成需引导且无槽位时，用规则回退为非旅游（与测试期望一致）
+        if (
+            intent_type == "tourism_need_guidance"
+            and city_name is None
+            and day_count is None
+            and self._looks_like_non_tourism_chat(user_input)
+        ):
+            return {
+                "intent_type": "non_tourism",
+                "city_name": None,
+                "day_count": None,
+                "confidence": confidence,
+                "guidance_reason": None,
+            }
+
+        if city_name is None:
+            if llm_guidance_reason in ("ambiguous_city", "multi_city", "foreign_city"):
+                city_name, city_reason = None, llm_guidance_reason
+            else:
+                city_name, city_reason = None, "missing_city"
+        else:
+            city_name, city_reason = self._validate_city_name(city_name, user_input)
+
+        if day_count is None:
+            if llm_guidance_reason in ("invalid_day_zero", "invalid_day_overflow", "ambiguous_day"):
+                day_count, day_reason = None, llm_guidance_reason
+            else:
+                day_count, day_reason = None, "missing_day"
+        else:
+            day_count, day_reason = self._validate_day_count(day_count)
+
+        # 规则层 missing_* 与 LLM 细粒度 guidance_reason 对齐（解决西北/0 天等场景）
+        city_reason, day_reason = self._merge_llm_guidance_over_generic_reasons(
+            city_reason, day_reason, llm_guidance_reason
+        )
+
+        if city_reason and day_reason:
+            guidance_reason = "missing_both" if (
+                city_reason == "missing_city" and day_reason == "missing_day"
+            ) else city_reason
+        elif city_reason:
+            guidance_reason = city_reason
+        elif day_reason:
+            guidance_reason = day_reason
+        else:
+            guidance_reason = None
+
+        if (city_name is None or day_count is None) and intent_type == "tourism":
+            intent_type = "tourism_need_guidance"
+
+        return {
+            "intent_type": intent_type,
+            "city_name": city_name,
+            "day_count": day_count,
+            "confidence": confidence,
+            "guidance_reason": guidance_reason,
+        }
+
+    def recognize_intent_with_stages(self, state: "AgentState", model_name: Optional[str] = None) -> Dict[str, Any]:
+        """返回两阶段结果：LLM 原始识别 + 规则校验后结果"""
+        user_input, messages = self._build_intent_messages(state)
+        llm_kwargs: Dict[str, Any] = {}
+        if model_name:
+            llm_kwargs["model_name"] = model_name
+
+        llm = LLMFactory.create_llm(
+            temperature=0.3,
+            max_tokens=500,
+            response_format={"type": "json_object"},
+            **llm_kwargs
+        )
+        response = llm.invoke(messages)
+        response_content = response.content if hasattr(response, "content") else str(response)
+
+        llm_raw = self._normalize_llm_result(json.loads(response_content))
+        after_rules = self._apply_rule_validation(user_input, llm_raw)
+        return {
+            "llm_raw": llm_raw,
+            "after_rules": after_rules,
+        }
+
     def recognize_intent(self, state: "AgentState") -> Dict[str, Any]:
         """
         使用 LLM 识别用户意图并提取信息
@@ -199,118 +387,36 @@ class LLMIntentService:
             - confidence: 置信度
         """
         try:
-            # 从 state 中提取信息
-            user_input = self._get_last_user_input(state)
-            conversation_history = state.get("messages", [])
-            current_city = state.get("city_name")
-            current_day_count = state.get("day_count")
-            in_guidance_mode = state.get("in_guidance_mode", False)
-            
-            # 加载系统提示词
-            system_prompt = self._load_system_prompt()
-            user_prompt_template = self._load_user_prompt_template()
-
-            # 构建上下文信息
-            context_parts = []
-            if in_guidance_mode:
-                context_parts.append("注意：当前处于旅游规划引导模式，用户可能在回答引导问题。")
-            if current_city:
-                context_parts.append(f"已知城市：{current_city}")
-            if current_day_count:
-                context_parts.append(f"已知天数：{current_day_count}")
-            
-            # 构建对话信息上下文
-            context_str = "\n".join(context_parts) if context_parts else ""
-            context_block = f"{context_str}\n" if context_str else "\n"
-
-            # 构建用户提示（从 prompt 文件读取）
-            user_prompt = user_prompt_template.format(
-                context_block=context_block,
-            )
-            
-            # 创建 LLM 实例（使用 JSON 格式）
+            user_input, messages = self._build_intent_messages(state)
             llm = LLMFactory.create_llm(
                 temperature=0.3,
                 max_tokens=500,
                 response_format={"type": "json_object"}
             )
-
-            # 构建消息列表
-            messages = [SystemMessage(content=system_prompt)]
-
-            # 添加对话历史（如果有）
-            if conversation_history:
-                # 只取最近几条消息作为上下文
-                for msg in conversation_history[-20:]:
-                    messages.append(msg)
-            
-            # 添加用户提示词
-            messages.append(HumanMessage(content=user_prompt))
-
-            # 调用 LLM
             response = llm.invoke(messages)
             response_content = response.content if hasattr(response, 'content') else str(response)
             
             # 尝试解析 JSON 响应
             try:
                 result = json.loads(response_content)
-
-                # 验证和标准化结果
-                intent_type = result.get("intent_type", "tourism_need_guidance")
-                city_name = result.get("city_name")
-                day_count = result.get("day_count")
-                confidence = result.get("confidence", 0.5)
-                llm_guidance_reason = result.get("guidance_reason")
+                llm_raw = self._normalize_llm_result(result)
+                intent_type = llm_raw["intent_type"]
+                city_name = llm_raw["city_name"]
+                day_count = llm_raw["day_count"]
+                confidence = llm_raw["confidence"]
+                llm_guidance_reason = llm_raw["llm_guidance_reason"]
 
                 logger.info(
                     f"意图识别结果: intent_type={intent_type}, city_name={city_name}, "
                     f"day_count={day_count}, confidence={confidence}, llm_guidance_reason={llm_guidance_reason}"
                 )
 
-                # 开始检查 LLM 的 city_name 是否合法，以及获取 city_reason
-                if city_name == "null" or city_name is None:
-                    # 若是 city_name 为空
-                    if llm_guidance_reason in ("ambiguous_city", "multi_city", "foreign_city"):
-                        # 若 LLM 认为需要引导的理由为 用户给出的城市异常，则继承其原因
-                        city_name, city_reason = None, llm_guidance_reason
-                    else:
-                        # 否则 city_reasom 为 missing_city
-                        city_name, city_reason = None, "missing_city"
-                else:
-                    # 若是 city_name 不为空，则 city_reasom 可能是 missing_city、ambiguous_city、multi_city
-                    city_name, city_reason = self._validate_city_name(city_name, user_input)
-                    
-
-                # 开始检查 LLM 的 day_count 是否合法，以及获取 day_reason
-                if day_count == "null" or day_count is None:
-                    # 若是 day_count 为空
-                    if llm_guidance_reason in ("invalid_day_zero", "invalid_day_overflow", "ambiguous_day"):
-                        # 若 LLM 认为需要引导的理由为 用户给出的天数异常，则继承其原因
-                        day_count, day_reason = None, llm_guidance_reason
-                    else:
-                        # 否则 day_reason 为 missing_day
-                        day_count, day_reason = None, "missing_day"
-                else:
-                    # 若是 day_count 不为空，则 day_reason 可能是 invalid_day_zero、invalid_day_overflow、ambiguous_day
-                    day_count, day_reason = self._validate_day_count(day_count)
-
-
-                # 组合推断最终 guidance_reason：城市问题优先，仅两者均缺失才返回 missing_both
-                if city_reason and day_reason:
-                    guidance_reason = "missing_both" if (
-                        city_reason == "missing_city" and day_reason == "missing_day"
-                    ) else city_reason
-                elif city_reason:
-                    guidance_reason = city_reason
-                elif day_reason:
-                    guidance_reason = day_reason
-                else:
-                    guidance_reason = None
-
-
-                # city_name 为空 或 day_count 为空，若当前是 tourism 则降级为 tourism_need_guidance
-                if (city_name is None or day_count is None) and intent_type == "tourism":
-                    intent_type = "tourism_need_guidance"
+                after_rules = self._apply_rule_validation(user_input, llm_raw)
+                intent_type = after_rules["intent_type"]
+                city_name = after_rules["city_name"]
+                day_count = after_rules["day_count"]
+                confidence = after_rules["confidence"]
+                guidance_reason = after_rules["guidance_reason"]
 
                 logger.info(
                     f"意图识别结果（程序修正）: intent_type={intent_type}, city_name={city_name}, "
