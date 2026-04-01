@@ -60,3 +60,5 @@ Thumbs.db
 secrets/
 *.pem
 
+
+/test/intent_eval/outputs/
