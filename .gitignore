@@ -33,6 +33,7 @@ ENV/
 *~
 
 # Environment
+scripts/.env
 .env
 .env.local
 
