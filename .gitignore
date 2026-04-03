@@ -52,13 +52,15 @@ logs/
 .DS_Store
 Thumbs.db
 
-
-
+# Jupyter Notebook
 .ipynb_checkpoints
 
 # 公钥与私钥
 secrets/
 *.pem
 
-
+# 测试结果
 /test/intent_eval/outputs/
+
+# 向量数据库
+chroma_db/
