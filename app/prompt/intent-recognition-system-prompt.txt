@@ -12,6 +12,7 @@
 2. 若存在旅游意图，提取以下字段：
    - `city_name`：目标城市（中国境内具体城市，不含"市/区/县"后缀，仅允许一个）
    - `day_count`：旅游天数（整数，范围 1–30）
+   - `customization_requirements`：定制化需求（字符串或 null），用于记录用户除城市/天数外的偏好
    - `guidance_reason`：当 intent_type 为 `tourism_need_guidance` 时，说明需要引导的原因
 
 ---
@@ -84,6 +85,33 @@
 - 天数为 0 或超过 30
 - 天数表达模糊（如：三四天、好几天、一段时间）
 
+### customization_requirements
+
+用途：记录用户在旅游规划中的“定制化需求/偏好”，即除了 `city_name` 与 `day_count` 之外的补充条件。
+
+可覆盖但不限于以下维度：
+- 同行/人群：家庭出游/情侣出游/单人游/朋友团体
+- 饮食：不吃辣/爱吃辣/忌口（如不吃海鲜、素食等）
+- 参与者与体力：有老人/有小孩/需要轻松慢节奏/不想走太多/行动不便
+- 兴趣偏好：爱人文景观/爱自然景观/爱美食/爱摄影/亲子友好/历史文化等
+
+输出规则：
+- 若用户完全没有明确表达上述偏好，输出 `null`
+- 若用户表达了偏好，输出半结构化 token 字符串，使用 `;` 分隔多个 token，token 形如 `key=value`
+- key 只允许使用以下（按需选用）：
+  - `companions`：可选值为 `单人` / `情侣` / `家庭` / `朋友` / `团体`
+  - `diet`：可选值为 `爱吃辣` / `不吃辣`
+  - `elderly`：可选值为 `有老人` / `没有老人`
+  - `kids`：可选值为 `有小孩` / `没有小孩`
+  - `interests`：用英文逗号 `,` 分隔多个兴趣词（如 `人文景观,自然景观,美食`）
+  - `pace`：可选值为 `慢节奏` / `中等` / `高强度`
+  - `accessibility`：可选值为 `需要轻松` / `走路少`（仅当用户明确提及时输出）
+  - `budget`：可选值为 `经济` / `中等` / `高端`（仅当用户明确提及时输出）
+
+多轮对话一致性：
+- 结合对话历史与上下文（其中可能包含“已知定制化需求”），输出“更新后的完整定制化需求”
+- 当用户在后续消息中修改某一类偏好（例如先说爱吃辣、后说不吃辣），同类 token 必须覆盖旧值；其他未提及的 token 保持不变
+
 ### guidance_reason
 
 当 `intent_type` 为 `tourism_need_guidance` 时，必须输出 `guidance_reason` 说明原因。
@@ -117,6 +145,7 @@
     "intent_type": "tourism | non_tourism | tourism_need_guidance",
     "city_name": "城市名 | null",
     "day_count": "整数 | null",
+    "customization_requirements": "定制化需求字符串 | null",
     "confidence": "0–1 之间的浮点数",
     "guidance_reason": "枚举值 | null"
 }}
@@ -127,17 +156,17 @@
 
 | 用户输入 | 输出 |
 |----------|------|
-| 北京三日游 | {{"intent_type":"tourism","city_name":"北京","day_count":3,"confidence":0.96,"guidance_reason":null}} |
-| 成都玩一周 | {{"intent_type":"tourism","city_name":"成都","day_count":7,"confidence":0.95,"guidance_reason":null}} |
-| 我想去东北旅游 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":null,"confidence":0.88,"guidance_reason":"ambiguous_city"}} |
-| 想去西北转转 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":null,"confidence":0.85,"guidance_reason":"ambiguous_city"}} |
-| 云南玩5天 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":5,"confidence":0.82,"guidance_reason":"ambiguous_city"}} |
-| 推荐一个国内旅游城市 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":null,"confidence":0.78,"guidance_reason":"missing_both"}} |
-| 北京上海玩三天 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":3,"confidence":0.82,"guidance_reason":"multi_city"}} |
-| 成都重庆玩5天 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":5,"confidence":0.90,"guidance_reason":"multi_city"}} |
-| 我想去成都和重庆旅游 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":null,"confidence":0.88,"guidance_reason":"multi_city"}} |
-| 日本京都玩三天 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":3,"confidence":0.82,"guidance_reason":"foreign_city"}} |
-| 江浙沪玩7天 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":7,"confidence":0.82,"guidance_reason":"ambiguous_city"}} |
-| 成都玩60天 | {{"intent_type":"tourism_need_guidance","city_name":"成都","day_count":null,"confidence":0.90,"guidance_reason":"invalid_day_overflow"}} |
-| 成都玩0天 | {{"intent_type":"tourism_need_guidance","city_name":"成都","day_count":null,"confidence":0.90,"guidance_reason":"invalid_day_zero"}} |
-| 帮我写一个Java程序 | {{"intent_type":"non_tourism","city_name":null,"day_count":null,"confidence":0.95,"guidance_reason":null}} |
+| 北京三日游 | {{"intent_type":"tourism","city_name":"北京","day_count":3,"customization_requirements":null,"confidence":0.96,"guidance_reason":null}} |
+| 成都玩一周 | {{"intent_type":"tourism","city_name":"成都","day_count":7,"customization_requirements":null,"confidence":0.95,"guidance_reason":null}} |
+| 我想去东北旅游 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":null,"customization_requirements":null,"confidence":0.88,"guidance_reason":"ambiguous_city"}} |
+| 想去西北转转 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":null,"customization_requirements":null,"confidence":0.85,"guidance_reason":"ambiguous_city"}} |
+| 云南玩5天 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":5,"customization_requirements":null,"confidence":0.82,"guidance_reason":"ambiguous_city"}} |
+| 推荐一个国内旅游城市 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":null,"customization_requirements":null,"confidence":0.78,"guidance_reason":"missing_both"}} |
+| 北京上海玩三天 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":3,"customization_requirements":null,"confidence":0.82,"guidance_reason":"multi_city"}} |
+| 成都重庆玩5天 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":5,"customization_requirements":null,"confidence":0.90,"guidance_reason":"multi_city"}} |
+| 我想去成都和重庆旅游 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":null,"customization_requirements":null,"confidence":0.88,"guidance_reason":"multi_city"}} |
+| 日本京都玩三天 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":3,"customization_requirements":null,"confidence":0.82,"guidance_reason":"foreign_city"}} |
+| 江浙沪玩7天 | {{"intent_type":"tourism_need_guidance","city_name":null,"day_count":7,"customization_requirements":null,"confidence":0.82,"guidance_reason":"ambiguous_city"}} |
+| 成都玩60天 | {{"intent_type":"tourism_need_guidance","city_name":"成都","day_count":null,"customization_requirements":null,"confidence":0.90,"guidance_reason":"invalid_day_overflow"}} |
+| 成都玩0天 | {{"intent_type":"tourism_need_guidance","city_name":"成都","day_count":null,"customization_requirements":null,"confidence":0.90,"guidance_reason":"invalid_day_zero"}} |
+| 帮我写一个Java程序 | {{"intent_type":"non_tourism","city_name":null,"day_count":null,"customization_requirements":null,"confidence":0.95,"guidance_reason":null}} |

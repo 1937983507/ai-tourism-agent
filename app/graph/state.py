@@ -9,6 +9,9 @@ class AgentState(MessagesState):
     user_id: str
     city_name: Optional[str] = None
     day_count: Optional[int] = None
+    # 定制化需求：用于记录用户偏好（除城市/天数外）
+    # 例如：家庭/情侣/单人出游、不吃辣/爱吃辣、有老人/有小孩、人文景观/自然景观等
+    customization_requirements: Optional[str] = None
     weather_data: Optional[str] = None
     poi_data: Optional[str] = None
     route_plan: Optional[str] = None

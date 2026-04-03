@@ -54,7 +54,11 @@ class PlanningService:
             poi_info = state.get("poi_data")
             city_name = state.get("city_name")
             day_count = state.get("day_count")
-            user_message = f"用户将在 {city_name} 旅游 {day_count} 天"
+            customization_requirements = state.get("customization_requirements")
+            if customization_requirements:
+                user_message = f"用户将在 {city_name} 旅游 {day_count} 天；用户定制化需求：{customization_requirements}"
+            else:
+                user_message = f"用户将在 {city_name} 旅游 {day_count} 天"
             
             # 加载提示词
             system_prompt = self._load_system_prompt()

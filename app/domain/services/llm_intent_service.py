@@ -190,6 +190,7 @@ class LLMIntentService:
         conversation_history = state.get("messages", [])
         current_city = state.get("city_name")
         current_day_count = state.get("day_count")
+        current_customization_requirements = state.get("customization_requirements")
         in_guidance_mode = state.get("in_guidance_mode", False)
 
         system_prompt = self._load_system_prompt()
@@ -202,6 +203,8 @@ class LLMIntentService:
             context_parts.append(f"已知城市：{current_city}")
         if current_day_count:
             context_parts.append(f"已知天数：{current_day_count}")
+        if current_customization_requirements:
+            context_parts.append(f"已知定制化需求：{current_customization_requirements}")
 
         context_str = "\n".join(context_parts) if context_parts else ""
         context_block = f"{context_str}\n" if context_str else "\n"
@@ -225,6 +228,7 @@ class LLMIntentService:
             "intent_type": llm_result.get("intent_type", "tourism_need_guidance"),
             "city_name": llm_result.get("city_name"),
             "day_count": llm_result.get("day_count"),
+            "customization_requirements": llm_result.get("customization_requirements"),
             "confidence": llm_result.get("confidence", 0.5),
             "llm_guidance_reason": gr,
         }
@@ -278,6 +282,7 @@ class LLMIntentService:
         city_name, day_count = self._normalize_intent_slots(
             normalized["city_name"], normalized["day_count"]
         )
+        customization_requirements = normalized["customization_requirements"]
         confidence = normalized["confidence"]
         llm_guidance_reason = normalized["llm_guidance_reason"]
 
@@ -287,6 +292,7 @@ class LLMIntentService:
                 "intent_type": "non_tourism",
                 "city_name": None,
                 "day_count": None,
+                "customization_requirements": None,
                 "confidence": confidence,
                 "guidance_reason": None,
             }
@@ -302,6 +308,7 @@ class LLMIntentService:
                 "intent_type": "non_tourism",
                 "city_name": None,
                 "day_count": None,
+                "customization_requirements": None,
                 "confidence": confidence,
                 "guidance_reason": None,
             }
@@ -345,6 +352,7 @@ class LLMIntentService:
             "intent_type": intent_type,
             "city_name": city_name,
             "day_count": day_count,
+            "customization_requirements": customization_requirements,
             "confidence": confidence,
             "guidance_reason": guidance_reason,
         }
@@ -405,10 +413,10 @@ class LLMIntentService:
                 day_count = llm_raw["day_count"]
                 confidence = llm_raw["confidence"]
                 llm_guidance_reason = llm_raw["llm_guidance_reason"]
-
+                customization_requirements = llm_raw["customization_requirements"]
                 logger.info(
                     f"意图识别结果: intent_type={intent_type}, city_name={city_name}, "
-                    f"day_count={day_count}, confidence={confidence}, llm_guidance_reason={llm_guidance_reason}"
+                    f"day_count={day_count}, confidence={confidence}, llm_guidance_reason={llm_guidance_reason}, customization_requirements={customization_requirements}"
                 )
 
                 after_rules = self._apply_rule_validation(user_input, llm_raw)
@@ -417,16 +425,18 @@ class LLMIntentService:
                 day_count = after_rules["day_count"]
                 confidence = after_rules["confidence"]
                 guidance_reason = after_rules["guidance_reason"]
+                customization_requirements = after_rules["customization_requirements"]
 
                 logger.info(
                     f"意图识别结果（程序修正）: intent_type={intent_type}, city_name={city_name}, "
-                    f"day_count={day_count}, confidence={confidence}, guidance_reason={guidance_reason}"
+                    f"day_count={day_count}, confidence={confidence}, guidance_reason={guidance_reason}, customization_requirements={customization_requirements}"
                 )
 
                 return {
                     "intent_type": intent_type,
                     "city_name": city_name,
                     "day_count": day_count,
+                    "customization_requirements": customization_requirements,
                     "confidence": confidence,
                     "guidance_reason": guidance_reason,
                 }
@@ -456,23 +466,28 @@ class LLMIntentService:
 
         # TODO 这里还是得获取到 guidance_reason 并进行返回
 
-        tourism_keywords = ["旅游", "旅行", "游玩", "景点", "攻略", "行程", "路线"]
-        is_tourism = any(keyword in user_input for keyword in tourism_keywords)
+        # 提取定制化需求
+        customization_requirements = SimpleIntentExtractor.extract_customization_requirements(user_input)
 
-        if city or day_count:
-            is_tourism = True
+        # 检测意图类型
+        intent_type = SimpleIntentExtractor.detect_intent_type(
+            user_input,
+            has_city_or_day=(city is not None or day_count is not None),
+        )
 
-        if is_tourism:
+        if intent_type == "tourism_need_guidance":
             return {
                 "intent_type": "tourism_need_guidance",
                 "city_name": city,
                 "day_count": day_count,
+                "customization_requirements": customization_requirements,
                 "confidence": 0.5
             }
-        else:
-            return {
-                "intent_type": "non_tourism",
-                "city_name": None,
-                "day_count": None,
-                "confidence": 0.5
-            }
+
+        return {
+            "intent_type": "non_tourism",
+            "city_name": None,
+            "day_count": None,
+            "customization_requirements": None,
+            "confidence": 0.5
+        }

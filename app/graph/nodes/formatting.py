@@ -40,6 +40,7 @@ def format_output_node(state: AgentState) -> dict:
                     "route_plan": state.get("route_plan"),
                     "weather_data": state.get("weather_data"),
                     "poi_data": state.get("poi_data"),
+                    "customization_requirements": state.get("customization_requirements"),
                     "error": "JSON 生成失败，返回原始数据"
                 }
         else:
