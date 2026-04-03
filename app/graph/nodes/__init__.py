@@ -4,6 +4,7 @@ from app.graph.nodes.llm_intent import llm_intent_recognition_node
 from app.graph.nodes.conversation_guidance import conversation_guidance_node
 from app.graph.nodes.general_response import general_response_node
 from app.graph.nodes.data_fetch import fetch_weather_node, fetch_poi_node
+from app.graph.nodes.rag_retrieve import rag_retrieve_node
 from app.graph.nodes.planning import plan_route_node
 from app.graph.nodes.formatting import format_output_node
 from app.graph.nodes.error import handle_error_node
@@ -18,6 +19,7 @@ __all__ = [
     "general_response_node",
     "fetch_weather_node",
     "fetch_poi_node",
+    "rag_retrieve_node",
     "plan_route_node",
     "format_output_node",
     "handle_error_node",
