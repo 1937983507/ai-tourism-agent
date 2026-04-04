@@ -38,3 +38,7 @@ loguru>=0.7.0
 # LangSmith - 可观测性和指标采集
 langsmith>=0.1.0
 
+# RAG 评测（RAGAS）
+ragas
+
+rapidfuzz

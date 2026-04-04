@@ -1,0 +1,31 @@
+[
+  {
+    "id": "tc_001",
+    "city_name": "北京",
+    "day_count": 3,
+    "customization_requirements": "companions=家庭;elderly=有老人;kids=有小孩;pace=慢节奏;diet=不吃辣",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_002",
+    "city_name": "北京",
+    "day_count": 4,
+    "customization_requirements": "companions=情侣;pace=中等;diet=爱吃辣;interests=美食,人文景观",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_003",
+    "city_name": "深圳",
+    "day_count": 2,
+    "customization_requirements": "companions=团体;kids=没有小孩;budget=高端;accessibility=走路少",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_004",
+    "city_name": "深圳",
+    "day_count": 5,
+    "customization_requirements": "companions=朋友;pace=高强度;diet=不吃辣;interests=历史文化,人文景观",
+    "ground_truth_answer": null
+  }
+]
+
