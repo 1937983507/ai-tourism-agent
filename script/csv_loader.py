@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import csv
+import inspect
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List
 
 import pandas as pd
 from pandas.errors import ParserError
 from langchain_core.documents import Document
+
+_READ_CSV_SUPPORTS_ENCODING_ERRORS = "encoding_errors" in inspect.signature(
+    pd.read_csv
+).parameters
 
 
 def detect_encoding_by_header(csv_path: Path) -> str:
@@ -53,21 +58,45 @@ def iter_documents_from_csv(
 
     # 先用“表头探测编码”作为优先候选，再做多编码回退，避免大文件中段出现解码错误时直接失败。
     first_guess = detect_encoding_by_header(csv_path)
-    tried_encodings: List[str] = []
-    for enc in [first_guess, "utf-8-sig", "gb18030", "utf-16"]:
-        if enc in tried_encodings:
+    strict_order = [first_guess, "utf-8-sig", "gb18030", "utf-16"]
+    # 宽松解码时优先 gb18030：表头常为 ASCII 会被误判为 UTF-8，正文实为 GB 系；若再先用 UTF-8+replace 会大面积乱码。
+    replace_order = ["gb18030", "utf-8-sig", "utf-16"]
+
+    def _read(enc: str, *, encoding_errors: str | None) -> pd.DataFrame:
+        kw: dict = {"encoding": enc, "dtype": str}
+        if encoding_errors is not None and _READ_CSV_SUPPORTS_ENCODING_ERRORS:
+            kw["encoding_errors"] = encoding_errors
+        return pd.read_csv(csv_path, **kw).fillna("")
+
+    strict_tried: List[str] = []
+    df = None
+    for enc in strict_order:
+        if enc in strict_tried:
             continue
-        tried_encodings.append(enc)
+        strict_tried.append(enc)
         try:
-            # dtype=str：保证每列都以字符串读入，避免 NaN/数字类型混入 metadata
-            df = pd.read_csv(csv_path, encoding=enc, dtype=str).fillna("")
+            df = _read(enc, encoding_errors=None)
             break
         except (UnicodeDecodeError, ParserError):
             continue
-    else:
-        raise RuntimeError(
-            f"无法解码或解析 CSV（已尝试编码 {tried_encodings}）：{csv_path}"
-        )
+
+    replace_tried: List[str] = []
+    if df is None and _READ_CSV_SUPPORTS_ENCODING_ERRORS:
+        for enc in replace_order:
+            if enc in replace_tried:
+                continue
+            replace_tried.append(enc)
+            try:
+                df = _read(enc, encoding_errors="replace")
+                break
+            except (UnicodeDecodeError, ParserError):
+                continue
+
+    if df is None:
+        detail = f"strict={strict_tried}"
+        if replace_tried:
+            detail += f", replace={replace_tried}"
+        raise RuntimeError(f"无法解码或解析 CSV（{detail}）：{csv_path}")
 
     # 显式校验正文列，避免列名写错时静默跳过全部数据，导致“看起来成功、实际 0 入库”。
     if content_col not in df.columns:
