@@ -62,6 +62,7 @@ secrets/
 
 # 测试结果
 /test/intent_eval/outputs/
+/test/rag_eval/outputs/
 
 # 向量数据库
 chroma_db/
