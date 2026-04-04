@@ -65,3 +65,7 @@ secrets/
 
 # 向量数据库
 chroma_db/
+
+# RAG脚本中的断点文件与向量数据库
+/script/ingest_checkpoint.json
+/script/chroma_db/
