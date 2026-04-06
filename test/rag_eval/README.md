@@ -69,7 +69,7 @@ cp test/rag_eval/.env.example test/rag_eval/.env
 
 ## 3. 运行评测
 
-### 方式 A：一步跑完（推荐）
+### 方式 A：一步跑完
 
 ```bash
 python test/rag_eval/run_rag_eval.py --step all
