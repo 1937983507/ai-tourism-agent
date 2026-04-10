@@ -52,9 +52,14 @@ class PlanningService:
             # 从 state 中提取信息
             weather_info = state.get("weather_data")
             poi_info = state.get("poi_data")
+            rag_context = state.get("rag_context")
             city_name = state.get("city_name")
             day_count = state.get("day_count")
-            user_message = f"用户将在 {city_name} 旅游 {day_count} 天"
+            customization_requirements = state.get("customization_requirements")
+            if customization_requirements:
+                user_message = f"用户将在 {city_name} 旅游 {day_count} 天；用户定制化需求：{customization_requirements}"
+            else:
+                user_message = f"用户将在 {city_name} 旅游 {day_count} 天"
             
             # 加载提示词
             system_prompt = self._load_system_prompt()
@@ -69,11 +74,13 @@ class PlanningService:
             # 格式化用户提示词
             weather_info_str = weather_info or "暂无天气信息"
             poi_info_str = poi_info or "暂无景点信息"
-            
+            rag_info_str = (rag_context or "").strip() or "暂无相关游记检索结果（或未配置向量库）"
+
             user_prompt = user_prompt_template.format(
                 weather_info=weather_info_str,
                 poi_info=poi_info_str,
-                user_message=user_message
+                rag_info=rag_info_str,
+                user_message=user_message,
             )
             
             # 调用 LLM（流式调用）

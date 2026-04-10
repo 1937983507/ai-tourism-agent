@@ -33,6 +33,7 @@ ENV/
 *~
 
 # Environment
+scripts/.env
 .env
 .env.local
 
@@ -52,11 +53,20 @@ logs/
 .DS_Store
 Thumbs.db
 
-
-
+# Jupyter Notebook
 .ipynb_checkpoints
 
 # 公钥与私钥
 secrets/
 *.pem
 
+# 测试结果
+/test/intent_eval/outputs/
+/test/rag_eval/outputs/
+
+# 向量数据库
+chroma_db/
+
+# RAG脚本中的断点文件与向量数据库
+/script/ingest_checkpoint.json
+/script/chroma_db/

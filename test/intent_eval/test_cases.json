@@ -1,0 +1,179 @@
+[
+
+  // ===========================================================================
+  // 类别 A：旅游意图 city+day 完整（intent_type=tourism）
+  // ===========================================================================
+  {"id": "tc_001", "query": "帮我规划一个上海3天旅游行程", "expected": {"intent_type": "tourism", "city_name": "上海", "day_count": 3, "guidance_reason": null}},
+  {"id": "tc_002", "query": "想去成都玩5天，有什么推荐？", "expected": {"intent_type": "tourism", "city_name": "成都", "day_count": 5, "guidance_reason": null}},
+  {"id": "tc_003", "query": "我想去深圳旅游三天", "expected": {"intent_type": "tourism", "city_name": "深圳", "day_count": 3, "guidance_reason": null}},
+  {"id": "tc_004", "query": "厦门4日游怎么安排", "expected": {"intent_type": "tourism", "city_name": "厦门", "day_count": 4, "guidance_reason": null}},
+  {"id": "tc_005", "query": "规划一个西安5天的旅游攻略", "expected": {"intent_type": "tourism", "city_name": "西安", "day_count": 5, "guidance_reason": null}},
+  {"id": "tc_006", "query": "重庆玩一周怎么安排", "expected": {"intent_type": "tourism", "city_name": "重庆", "day_count": 7, "guidance_reason": null}},
+  {"id": "tc_007", "query": "推荐一下武汉2日游路线", "expected": {"intent_type": "tourism", "city_name": "武汉", "day_count": 2, "guidance_reason": null}},
+  {"id": "tc_008", "query": "贵阳2天短途游怎么玩", "expected": {"intent_type": "tourism", "city_name": "贵阳", "day_count": 2, "guidance_reason": null}},
+  {"id": "tc_009", "query": "青岛玩1天怎么逛", "expected": {"intent_type": "tourism", "city_name": "青岛", "day_count": 1, "guidance_reason": null}},
+  {"id": "tc_010", "query": "三十天的拉萨旅行计划", "expected": {"intent_type": "tourism", "city_name": "拉萨", "day_count": 30, "guidance_reason": null}},
+  {"id": "tc_011", "query": "三亚，玩七天呗", "expected": {"intent_type": "tourism", "city_name": "三亚", "day_count": 7, "guidance_reason": null}},
+  {"id": "tc_012", "query": "乌鲁木齐8日游攻略", "expected": {"intent_type": "tourism", "city_name": "乌鲁木齐", "day_count": 8, "guidance_reason": null}},
+
+  // ===========================================================================
+  // 类别 B：非旅游（non_tourism）
+  // ===========================================================================
+  {"id": "tc_013", "query": "我这周很忙", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+  {"id": "tc_014", "query": "你会写代码吗？", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+  {"id": "tc_015", "query": "今天天气怎么样", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+  {"id": "tc_016", "query": "你知道怎么订机票吗", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+  {"id": "tc_017", "query": "帮我算一下数学题", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+  {"id": "tc_018", "query": "推荐一家附近的外卖", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+  {"id": "tc_019", "query": "明天上班要注意什么", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+  {"id": "tc_020", "query": "怎么煮番茄鸡蛋面", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+  {"id": "tc_021", "query": "最近有什么好看的电影", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+  {"id": "tc_022", "query": "今天股市涨了吗", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+  {"id": "tc_023", "query": "蓝牙耳机怎么配对", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+  {"id": "tc_024", "query": "打印机卡纸了怎么办", "expected": {"intent_type": "non_tourism", "city_name": null, "day_count": null, "guidance_reason": null}},
+
+  // ===========================================================================
+  // 类别 C：有城市、缺天数（missing_day）
+  // ===========================================================================
+  {"id": "tc_025", "query": "给我推荐下北京的景点", "expected": {"intent_type": "tourism_need_guidance", "city_name": "北京", "day_count": null, "guidance_reason": "missing_day"}},
+  {"id": "tc_026", "query": "推荐青岛的美食和景点", "expected": {"intent_type": "tourism_need_guidance", "city_name": "青岛", "day_count": null, "guidance_reason": "missing_day"}},
+  {"id": "tc_027", "query": "成都有什么好玩的地方", "expected": {"intent_type": "tourism_need_guidance", "city_name": "成都", "day_count": null, "guidance_reason": "missing_day"}},
+  {"id": "tc_028", "query": "想去西安吃美食", "expected": {"intent_type": "tourism_need_guidance", "city_name": "西安", "day_count": null, "guidance_reason": "missing_day"}},
+  {"id": "tc_029", "query": "重庆住宿哪里比较方便", "expected": {"intent_type": "tourism_need_guidance", "city_name": "重庆", "day_count": null, "guidance_reason": "missing_day"}},
+  {"id": "tc_030", "query": "大理有哪些必去打卡点", "expected": {"intent_type": "tourism_need_guidance", "city_name": "大理", "day_count": null, "guidance_reason": "missing_day"}},
+  {"id": "tc_031", "query": "哈尔滨有什么特色小吃", "expected": {"intent_type": "tourism_need_guidance", "city_name": "哈尔滨", "day_count": null, "guidance_reason": "missing_day"}},
+  {"id": "tc_032", "query": "南京夜游路线推荐", "expected": {"intent_type": "tourism_need_guidance", "city_name": "南京", "day_count": null, "guidance_reason": "missing_day"}},
+  {"id": "tc_033", "query": "长沙白天去哪逛比较好", "expected": {"intent_type": "tourism_need_guidance", "city_name": "长沙", "day_count": null, "guidance_reason": "missing_day"}},
+  {"id": "tc_034", "query": "昆明气候怎么样适合玩吗", "expected": {"intent_type": "tourism_need_guidance", "city_name": "昆明", "day_count": null, "guidance_reason": "missing_day"}},
+  {"id": "tc_035", "query": "宁波港口附近有什么景点", "expected": {"intent_type": "tourism_need_guidance", "city_name": "宁波", "day_count": null, "guidance_reason": "missing_day"}},
+  {"id": "tc_036", "query": "洛阳古迹多吗想转转", "expected": {"intent_type": "tourism_need_guidance", "city_name": "洛阳", "day_count": null, "guidance_reason": "missing_day"}},
+
+  // ===========================================================================
+  // 类别 D：有天数、缺城市（missing_city）
+  // ===========================================================================
+  {"id": "tc_037", "query": "周末想出去旅游，两天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 2, "guidance_reason": "missing_city"}},
+  {"id": "tc_038", "query": "计划玩4天，去哪里旅游好", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 4, "guidance_reason": "missing_city"}},
+  {"id": "tc_039", "query": "打算玩五天，推荐个地方", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 5, "guidance_reason": "missing_city"}},
+  {"id": "tc_040", "query": "休三天假，去哪旅游合适", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 3, "guidance_reason": "missing_city"}},
+  {"id": "tc_041", "query": "玩一周，有没有好的旅游地", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 7, "guidance_reason": "missing_city"}},
+  {"id": "tc_042", "query": "放两天假，想去玩一下", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 2, "guidance_reason": "missing_city"}},
+  {"id": "tc_043", "query": "年假有10天想出门逛逛", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 10, "guidance_reason": "missing_city"}},
+  {"id": "tc_044", "query": "只有一天时间能去哪玩", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 1, "guidance_reason": "missing_city"}},
+  {"id": "tc_045", "query": "元旦放假3天求目的地", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 3, "guidance_reason": "missing_city"}},
+  {"id": "tc_046", "query": "暑假打算玩15天去哪儿", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 15, "guidance_reason": "missing_city"}},
+  {"id": "tc_047", "query": "六天行程还没定城市", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 6, "guidance_reason": "missing_city"}},
+  {"id": "tc_048", "query": "想旅游8天但不知道去哪", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 8, "guidance_reason": "missing_city"}},
+
+  // ===========================================================================
+  // 类别 E：城市/区域模糊（ambiguous_city）
+  // ===========================================================================
+  {"id": "tc_049", "query": "帮我做个去西北的旅游计划，4天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 4, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_050", "query": "想去西南地区旅游，玩5天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 5, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_051", "query": "珠三角玩3天有什么攻略", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 3, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_052", "query": "想去东北玩，大概6天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 6, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_053", "query": "去江南玩5天怎么安排", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 5, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_054", "query": "中原地区旅游3天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 3, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_055", "query": "沿海城市玩4天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 4, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_056", "query": "云贵川玩一周", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 7, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_057", "query": "去华北玩3天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 3, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_058", "query": "长三角周末2日游求路线", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 2, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_059", "query": "大西北自驾5天怎么玩", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 5, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_060", "query": "环渤海4天行程推荐", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 4, "guidance_reason": "ambiguous_city"}},
+
+  // ===========================================================================
+  // 类别 F：多城市（multi_city）
+  // ===========================================================================
+  {"id": "tc_061", "query": "想去北京上海玩6天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 6, "guidance_reason": "multi_city"}},
+  {"id": "tc_062", "query": "苏州南京玩4天怎么规划", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 4, "guidance_reason": "multi_city"}},
+  {"id": "tc_063", "query": "长沙张家界玩一周", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 7, "guidance_reason": "multi_city"}},
+  {"id": "tc_064", "query": "成都重庆西安玩5天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 5, "guidance_reason": "multi_city"}},
+  {"id": "tc_065", "query": "青岛、威海、烟台旅行", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "multi_city"}},
+  {"id": "tc_066", "query": "昆明大理丽江玩6天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 6, "guidance_reason": "multi_city"}},
+  {"id": "tc_067", "query": "广州和深圳以及珠海玩3天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 3, "guidance_reason": "multi_city"}},
+  {"id": "tc_068", "query": "厦门泉州三天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 3, "guidance_reason": "multi_city"}},
+  {"id": "tc_069", "query": "杭州绍兴乌镇想一起走", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "multi_city"}},
+  {"id": "tc_070", "query": "兰州西宁敦煌一条线7天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 7, "guidance_reason": "multi_city"}},
+  {"id": "tc_071", "query": "哈尔滨长春沈阳都想看一遍", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "multi_city"}},
+  {"id": "tc_072", "query": "南宁桂林北海一起排5天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 5, "guidance_reason": "multi_city"}},
+
+  // ===========================================================================
+  // 类别 G：境外目的地（foreign_city）
+  // ===========================================================================
+  {"id": "tc_073", "query": "想去泰国曼谷玩5天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 5, "guidance_reason": "foreign_city"}},
+  {"id": "tc_074", "query": "巴黎3日游攻略有吗", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 3, "guidance_reason": "foreign_city"}},
+  {"id": "tc_075", "query": "东京玩4天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 4, "guidance_reason": "foreign_city"}},
+  {"id": "tc_076", "query": "纽约旅游攻略", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "foreign_city"}},
+  {"id": "tc_077", "query": "伦敦一周旅行计划", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 7, "guidance_reason": "foreign_city"}},
+  {"id": "tc_078", "query": "新加坡玩2天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 2, "guidance_reason": "foreign_city"}},
+  {"id": "tc_079", "query": "首尔5日游", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 5, "guidance_reason": "foreign_city"}},
+  {"id": "tc_080", "query": "马来西亚兰卡威潜水游", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "foreign_city"}},
+  {"id": "tc_081", "query": "悉尼歌剧院周边逛逛吃", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "foreign_city"}},
+  {"id": "tc_082", "query": "迪拜7天购物行程", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 7, "guidance_reason": "foreign_city"}},
+  {"id": "tc_083", "query": "罗马斗兽场一日游够吗", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": 1, "guidance_reason": "foreign_city"}},
+  {"id": "tc_084", "query": "温哥华秋天适合玩几天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "foreign_city"}},
+
+  // ===========================================================================
+  // 类别 H：天数为 0（invalid_day_zero）
+  // ===========================================================================
+  {"id": "tc_085", "query": "帮我安排广州0天行程", "expected": {"intent_type": "tourism_need_guidance", "city_name": "广州", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+  {"id": "tc_086", "query": "安排昆明0天的旅行计划", "expected": {"intent_type": "tourism_need_guidance", "city_name": "昆明", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+  {"id": "tc_087", "query": "宁波0天旅行规划", "expected": {"intent_type": "tourism_need_guidance", "city_name": "宁波", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+  {"id": "tc_088", "query": "三亚零天旅游攻略", "expected": {"intent_type": "tourism_need_guidance", "city_name": "三亚", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+  {"id": "tc_089", "query": "西安〇天怎么玩", "expected": {"intent_type": "tourism_need_guidance", "city_name": "西安", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+  {"id": "tc_090", "query": "天津0天行程", "expected": {"intent_type": "tourism_need_guidance", "city_name": "天津", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+  {"id": "tc_091", "query": "成都玩零天可以吗", "expected": {"intent_type": "tourism_need_guidance", "city_name": "成都", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+  {"id": "tc_092", "query": "深圳安排0日游", "expected": {"intent_type": "tourism_need_guidance", "city_name": "深圳", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+  {"id": "tc_093", "query": "武汉0天快闪", "expected": {"intent_type": "tourism_need_guidance", "city_name": "武汉", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+  {"id": "tc_094", "query": "重庆市区0天怎么玩", "expected": {"intent_type": "tourism_need_guidance", "city_name": "重庆", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+  {"id": "tc_095", "query": "大连安排零天行程", "expected": {"intent_type": "tourism_need_guidance", "city_name": "大连", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+  {"id": "tc_096", "query": "厦门岛内0天游记", "expected": {"intent_type": "tourism_need_guidance", "city_name": "厦门", "day_count": null, "guidance_reason": "invalid_day_zero"}},
+
+  // ===========================================================================
+  // 类别 I：天数超界（invalid_day_overflow）
+  // ===========================================================================
+  {"id": "tc_097", "query": "帮我安排杭州31天旅行", "expected": {"intent_type": "tourism_need_guidance", "city_name": "杭州", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+  {"id": "tc_098", "query": "大连60天旅游怎么安排", "expected": {"intent_type": "tourism_need_guidance", "city_name": "大连", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+  {"id": "tc_099", "query": "拉萨32天旅行计划", "expected": {"intent_type": "tourism_need_guidance", "city_name": "拉萨", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+  {"id": "tc_100", "query": "乌鲁木齐99天旅游", "expected": {"intent_type": "tourism_need_guidance", "city_name": "乌鲁木齐", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+  {"id": "tc_101", "query": "呼和浩特100天怎么玩", "expected": {"intent_type": "tourism_need_guidance", "city_name": "呼和浩特", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+  {"id": "tc_102", "query": "长沙45天旅行", "expected": {"intent_type": "tourism_need_guidance", "city_name": "长沙", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+  {"id": "tc_103", "query": "北京玩40天攻略", "expected": {"intent_type": "tourism_need_guidance", "city_name": "北京", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+  {"id": "tc_104", "query": "上海连续35天深度游", "expected": {"intent_type": "tourism_need_guidance", "city_name": "上海", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+  {"id": "tc_105", "query": "广州安排50天怎么玩", "expected": {"intent_type": "tourism_need_guidance", "city_name": "广州", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+  {"id": "tc_106", "query": "成都游33天行程安排", "expected": {"intent_type": "tourism_need_guidance", "city_name": "成都", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+  {"id": "tc_107", "query": "青岛暑假90天发呆计划", "expected": {"intent_type": "tourism_need_guidance", "city_name": "青岛", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+  {"id": "tc_108", "query": "哈尔滨冬季游66天", "expected": {"intent_type": "tourism_need_guidance", "city_name": "哈尔滨", "day_count": null, "guidance_reason": "invalid_day_overflow"}},
+
+  // ===========================================================================
+  // 类别 J：城市与天数均缺失（missing_both）
+  // ===========================================================================
+  {"id": "tc_109", "query": "推荐一个国内旅游目的地", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+  {"id": "tc_110", "query": "我想出去旅游，不知道去哪也不知道玩几天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+  {"id": "tc_111", "query": "我想出去旅游", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+  {"id": "tc_112", "query": "推荐个旅游的地方", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+  {"id": "tc_113", "query": "想度假，没头绪", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+  {"id": "tc_114", "query": "帮我做个旅游计划吧", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+  {"id": "tc_115", "query": "想出去玩玩", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+  {"id": "tc_116", "query": "求个旅行灵感", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+  {"id": "tc_117", "query": "想放松几天但没想好去哪", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+  {"id": "tc_118", "query": "有没有好玩的旅程推荐", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+  {"id": "tc_119", "query": "假期想转转城市也没定", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+  {"id": "tc_120", "query": "想出去走走还没安排", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_both"}},
+
+  // ===========================================================================
+  // 类别 K：复合问题（城市侧 + 天数侧同时异常；最终 guidance 按实现：非 missing_city+missing_day 时取城市侧原因）
+  // 说明：multi+overflow / multi+zero / ambiguous+overflow / ambiguous+zero / missing_city+overflow 等
+  // ===========================================================================
+  {"id": "tc_121", "query": "想去北京上海玩35天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "multi_city"}},
+  {"id": "tc_122", "query": "苏州南京杭州玩0天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "multi_city"}},
+  {"id": "tc_123", "query": "珠三角玩31天怎么安排", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_124", "query": "去西北玩0天行程", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_125", "query": "云贵川玩55天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_126", "query": "华南玩0天合适吗", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "ambiguous_city"}},
+  {"id": "tc_127", "query": "成都重庆玩40天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "multi_city"}},
+  {"id": "tc_128", "query": "青岛威海烟台玩0天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "multi_city"}},
+  {"id": "tc_129", "query": "玩40天去哪旅游好", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_city"}},
+  {"id": "tc_130", "query": "出门旅游0天去哪玩", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "missing_city"}},
+  {"id": "tc_131", "query": "曼谷玩40天攻略", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "foreign_city"}},
+  {"id": "tc_132", "query": "东京大阪京都一起玩0天", "expected": {"intent_type": "tourism_need_guidance", "city_name": null, "day_count": null, "guidance_reason": "foreign_city"}}
+]

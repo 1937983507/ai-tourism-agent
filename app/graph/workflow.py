@@ -10,6 +10,7 @@ from app.graph.nodes import (
     parallel_trigger_node,        # 并行触发节点
     fetch_weather_node,
     fetch_poi_node,
+    rag_retrieve_node,
     plan_route_node,
     format_output_node,
     handle_error_node,
@@ -51,6 +52,7 @@ def create_agent_graph():
     graph.add_node("parallel_trigger", parallel_trigger_node)      # 并行触发节点
     graph.add_node("fetch_weather", fetch_weather_node)             # 获取天气
     graph.add_node("fetch_poi", fetch_poi_node)                     # 获取景点
+    graph.add_node("rag_retrieve", rag_retrieve_node)               # RAG 向量检索
     graph.add_node("plan_route", plan_route_node)                   # 路线规划
     graph.add_node("format_output", format_output_node)             # 格式化输出
     graph.add_node("handle_error", handle_error_node)               # 错误处理
@@ -93,14 +95,16 @@ def create_agent_graph():
     # 通用回复 -> 结束
     graph.add_edge("general_response", END)
     
-    # 并行触发节点 -> 同时触发天气和景点获取（并行执行）
+    # 并行触发节点 -> 同时触发天气、景点、RAG（并行执行）
     graph.add_edge("parallel_trigger", "fetch_weather")
     graph.add_edge("parallel_trigger", "fetch_poi")
-    
-    # 天气和景点获取完成后 -> 路线规划
-    # LangGraph 会等待两个节点都完成后才执行 plan_route
+    graph.add_edge("parallel_trigger", "rag_retrieve")
+
+    # 天气、景点、RAG 均完成后 -> 路线规划
+    # LangGraph 会等待所有入边节点都完成后才执行 plan_route
     graph.add_edge("fetch_weather", "plan_route")
     graph.add_edge("fetch_poi", "plan_route")
+    graph.add_edge("rag_retrieve", "plan_route")
     
     # 路线规划 -> 格式化输出
     graph.add_edge("plan_route", "format_output")

@@ -30,7 +30,9 @@
 ## 核心特性
 
 - **意图识别与对话引导**：LLM 意图识别 + 规则降级，支持多轮对话以补齐城市/天数等用户需求信息
+- **偏好/定制需求抽取**：在意图识别阶段提取用户定制化需求（如家庭/情侣/不吃辣/人文/自然等），并支持多轮追加/覆盖
 - **高性能链路**：天气与 POI 并行获取、SSE 流式输出、SQLite/PostgreSQL 会话持久化
+- **RAG 检索增强**：在旅游推荐链路并行检索向量库片段（按城市过滤），将检索结果注入规划提示以增强路线参考
 - **工具与输出**：天气（OpenWeather/和风）、POI 调用后端接口，输出 JSON 攻略并可回调后端落库
 
 
@@ -61,7 +63,8 @@
 
 ### 3. 高性能架构
 
-- **并行数据获取**：在意图为「旅游且信息完整」时，通过 LangGraph 的并行节点同时请求天气与 POI，缩短首字响应时间（例如由串行约 5s 降至约 3s）。
+- **RAG 并行检索**：在旅游推荐链路并行触发RAG检索召回，与天气/景点获取同一批次完成以降低总体延迟
+- **并行数据获取**：在意图为「旅游且信息完整」时，通过 LangGraph 的并行节点同时请求天气与 POI，缩短首字响应时间。
 - **流式响应**：使用 SSE 将 LLM 生成内容实时推送到后端再至前端，提升体验；格式与后端约定一致，便于网关透传。
 - **状态持久化**：支持 memory / sqlite / postgres 三种 Checkpoint 后端，单机推荐 sqlite，多实例或分布式部署可选用 postgres，便于会话恢复与水平扩展。
 
@@ -70,6 +73,14 @@
 - **天气预报**：支持 OpenWeather API 与和风天气 API，通过环境变量 `WEATHER_PROVIDER` 切换；和风需配置 JWT 与私钥，详见配置说明。
 - **景点搜索**：通过 HTTP 调用 **ai-tourism-backend** 提供的 POI 接口（如 `/tool/poi`），依赖后端完成鉴权与数据源封装。
 - **结构化输出**：规划结果生成 JSON 格式旅游攻略，并可通过回调接口提交给后端落库或展示，便于前端地图与行程展示。
+
+### 5. RAG 向量检索增强
+
+- **RAG 节点**：新增 `rag_retrieve` 节点，在 `weather` 与 `poi` 并行获取的同时检索游记/攻略片段。
+- **城市筛选**：检索时通过 `metadata["source_city"]`（可配置）过滤，仅返回当前城市相关内容。
+- **向量化模型**：默认使用 `text-embedding-3-small`（可配置），embedding 的 `base_url/api_key` 与 LLM 一致。
+- **输出注入**：检索结果生成 `rag_context`，并在 `route-planning-user-prompt.txt` 中作为 `{rag_info}` 注入路线规划 LLM 提示中，作为“补充灵感”；天气/POI 仍然是主要依据。
+- **数据准备**：向量库由 `script/run.py` 通过离线切块/入库流程构建，详见 `script/RAG_DATA_PROCESSING_README.md`。
 
 ---
 
@@ -157,6 +168,7 @@ parallel_trigger   conversation_guidance  general_response
 ├──────────┤      │  - 步骤1: LLM 提取信息（JSON）       │
 │ weather  │      │  - 步骤2: 生成引导回复               │
 │ poi      │      │  - 检查信息完整性                    │
+│ rag      │      │                                     │
 └──────────┘      └─────────────────────────────────────┘
   ↓                    ↓                    ↓
 plan_route        complete? → parallel    END
@@ -228,6 +240,7 @@ ai-tourism-agent/
 │   │       ├── general_response_service.py     # 通用回复
 │   │       ├── data_service.py                 # 数据获取
 │   │       ├── planning_service.py             # 路线规划
+│   │       ├── rag_retrieval_service.py        # RAG 检索服务（向量检索）
 │   │       ├── formatting_service.py           # 格式化输出
 │   │       ├── validation_service.py           # 输入验证
 │   │       └── callback_service.py             # Java 回调
@@ -242,6 +255,7 @@ ai-tourism-agent/
 │   │       ├── general_response.py # 通用回复节点
 │   │       ├── parallel_trigger.py # 并行触发节点
 │   │       ├── data_fetch.py       # 数据获取节点
+│   │       ├── rag_retrieve.py     # RAG 向量检索节点
 │   │       ├── planning.py         # 路线规划节点
 │   │       ├── formatting.py       # 格式化输出节点
 │   │       ├── error.py            # 错误处理节点
@@ -300,6 +314,14 @@ OPENAI_API_KEY=your_api_key
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL_NAME=gpt-4o-mini
 OPENAI_MAX_OUTPUT_TOKENS=4096
+OPENAI_EMBEDDING_MODEL_NAME=text-embedding-3-small
+
+# RAG 配置
+RAG_ENABLED=true
+RAG_CHROMA_DIR=./chroma_db
+RAG_COLLECTION_NAME=travel_docs
+RAG_TOP_K=5
+RAG_CITY_METADATA_KEY=source_city
 
 # Checkpoint 配置（默认使用内存，可选 memory | sqlite | postgres）
 CHECKPOINT_TYPE=sqlite
@@ -534,7 +556,7 @@ curl http://localhost:8291/agent/health
 curl http://localhost:8291/agent/tools
 
 # 流式对话（推荐）
-curl -X POST http://localhost:8291/agent/chat-stream \
+curl -N -v -X POST http://localhost:8291/agent/chat-stream \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "test_session_001",
@@ -565,6 +587,15 @@ curl -X POST http://localhost:8291/agent/chat \
 
 - `WEATHER_PROVIDER=openweathermap|qweather`
 - 使用和风天气时，需要按上文「和风天气 JWT 配置详细步骤」准备私钥与相关变量
+
+### RAG 向量检索配置
+
+- `RAG_ENABLED=true|false`：是否启用 RAG 检索节点（默认 true）
+- `RAG_CHROMA_DIR`：Chroma 持久化目录
+- `RAG_COLLECTION_NAME`：Chroma 集合名（默认 `travel_docs`）
+- `RAG_TOP_K`：每次检索返回的 top-k（默认 5）
+- `RAG_CITY_METADATA_KEY`：用于城市过滤的 metadata 字段名（默认 `source_city`）
+- 说明：当 `RAG_ENABLED=true` 但 `RAG_CHROMA_DIR` 为空/不存在时，会降级为 `rag_context=""`，主流程仍可运行。
 
 ### 与后端（Java/Spring Boot）集成
 
@@ -734,11 +765,6 @@ graph = await init_agent_graph()
 - [ ] 将工具调用过程（工具名、入参、耗时、结果摘要、错误）以事件流形式下发，前端渲染展示
 - [ ] 设计统一事件协议：区分「模型输出 token」「工具调用开始/结束」「检索命中/未命中」「规划阶段切换」
 - [ ] 支持“调试模式”：允许在 UI 上展开查看完整工具入参/原始结果（默认脱敏）
-
-### 6. RAG 与检索兜底（城市景点知识）
-- [ ] 向量数据库集成：按城市构建景点知识库（景点介绍/开放时间/交通/适合人群/注意事项等）
-- [ ] 检索优先策略：若命中（相似度阈值 + TopK），将检索到的内容直接交给大模型生成输出（带引用片段）
-- [ ] 未命中兜底：若检索不到则调用 MCP/Function Call 进行外部检索补全，并将结果回灌入知识库
 
 ---
 

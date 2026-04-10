@@ -7,6 +7,9 @@ langchain-openai>=0.2.0
 langchain-core>=0.3.0
 langchain-community>=0.3.0
 
+# Chroma 向量库（RAG 检索）
+chromadb>=0.4.0
+
 # FastAPI - Web 框架
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
@@ -19,6 +22,7 @@ langgraph-checkpoint-sqlite>=0.1.0
 httpx>=0.27.0
 
 # 工具库
+json5>=0.9.0
 pydantic>=2.9.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
@@ -34,3 +38,7 @@ loguru>=0.7.0
 # LangSmith - 可观测性和指标采集
 langsmith>=0.1.0
 
+# RAG 评测（RAGAS）
+ragas
+
+rapidfuzz

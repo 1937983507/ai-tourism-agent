@@ -1,0 +1,352 @@
+[
+  {
+    "id": "tc_001",
+    "city_name": "北京",
+    "day_count": 3,
+    "customization_requirements": "companions=家庭;elderly=有老人;kids=有小孩;pace=慢节奏;diet=不吃辣",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_002",
+    "city_name": "上海",
+    "day_count": 4,
+    "customization_requirements": "companions=情侣;pace=中等;diet=爱吃辣;interests=美食,人文景观",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_003",
+    "city_name": "广州",
+    "day_count": 2,
+    "customization_requirements": "companions=团体;kids=没有小孩;budget=高端;accessibility=走路少",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_004",
+    "city_name": "深圳",
+    "day_count": 5,
+    "customization_requirements": "companions=朋友;pace=高强度;diet=不吃辣;interests=历史文化,人文景观",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_005",
+    "city_name": "成都",
+    "day_count": 6,
+    "customization_requirements": "companions=单人;diet=爱吃辣;interests=美食,自然景观;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_006",
+    "city_name": "重庆",
+    "day_count": 3,
+    "customization_requirements": "companions=情侣;diet=爱吃辣;budget=经济;interests=夜景,美食",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_007",
+    "city_name": "杭州",
+    "day_count": 4,
+    "customization_requirements": "companions=家庭;kids=有小孩;elderly=没有老人;pace=慢节奏;interests=自然景观,摄影",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_008",
+    "city_name": "西安",
+    "day_count": 5,
+    "customization_requirements": "companions=朋友;interests=历史文化,人文景观;pace=中等;diet=不吃辣",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_009",
+    "city_name": "南京",
+    "day_count": 3,
+    "customization_requirements": "companions=单人;elderly=没有老人;kids=没有小孩;interests=人文景观,历史文化",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_010",
+    "city_name": "苏州",
+    "day_count": 2,
+    "customization_requirements": "companions=情侣;pace=慢节奏;accessibility=需要轻松;interests=园林,人文景观",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_011",
+    "city_name": "武汉",
+    "day_count": 4,
+    "customization_requirements": "companions=家庭;elderly=有老人;pace=慢节奏;accessibility=走路少;diet=不吃辣",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_012",
+    "city_name": "厦门",
+    "day_count": 5,
+    "customization_requirements": "companions=朋友;budget=中等;interests=海滨,摄影,美食;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_013",
+    "city_name": "青岛",
+    "day_count": 4,
+    "customization_requirements": "companions=团体;kids=有小孩;interests=海滨,自然景观;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_014",
+    "city_name": "三亚",
+    "day_count": 7,
+    "customization_requirements": "companions=情侣;budget=高端;interests=海滨,摄影;pace=慢节奏",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_015",
+    "city_name": "哈尔滨",
+    "day_count": 5,
+    "customization_requirements": "companions=家庭;kids=有小孩;diet=不吃辣;interests=冰雪,人文景观",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_016",
+    "city_name": "大理",
+    "day_count": 6,
+    "customization_requirements": "companions=单人;pace=慢节奏;interests=自然景观,摄影,人文景观;budget=经济",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_017",
+    "city_name": "丽江",
+    "day_count": 4,
+    "customization_requirements": "companions=情侣;interests=自然景观,历史文化;pace=中等;accessibility=需要轻松",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_018",
+    "city_name": "桂林",
+    "day_count": 3,
+    "customization_requirements": "companions=朋友;elderly=没有老人;interests=自然景观,摄影;pace=高强度",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_019",
+    "city_name": "长沙",
+    "day_count": 3,
+    "customization_requirements": "companions=朋友;diet=爱吃辣;interests=美食,人文景观;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_020",
+    "city_name": "天津",
+    "day_count": 2,
+    "customization_requirements": "companions=家庭;kids=没有小孩;elderly=有老人;pace=慢节奏;accessibility=走路少",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_021",
+    "city_name": "郑州",
+    "day_count": 4,
+    "customization_requirements": "companions=单人;budget=中等;interests=历史文化,美食;diet=不吃辣",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_022",
+    "city_name": "沈阳",
+    "day_count": 3,
+    "customization_requirements": "companions=团体;pace=高强度;interests=人文景观,美食",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_023",
+    "city_name": "大连",
+    "day_count": 4,
+    "customization_requirements": "companions=情侣;interests=海滨,自然景观;budget=中等;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_024",
+    "city_name": "昆明",
+    "day_count": 5,
+    "customization_requirements": "companions=家庭;kids=有小孩;elderly=没有老人;interests=自然景观,美食;diet=爱吃辣",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_025",
+    "city_name": "贵阳",
+    "day_count": 4,
+    "customization_requirements": "companions=朋友;diet=爱吃辣;interests=自然景观,人文景观;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_026",
+    "city_name": "乌鲁木齐",
+    "day_count": 8,
+    "customization_requirements": "companions=单人;interests=自然景观,摄影,历史文化;pace=高强度;budget=经济",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_027",
+    "city_name": "海口",
+    "day_count": 5,
+    "customization_requirements": "companions=家庭;kids=有小孩;interests=海滨,亲子友好;pace=慢节奏",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_028",
+    "city_name": "南宁",
+    "day_count": 3,
+    "customization_requirements": "companions=朋友;budget=经济;interests=美食,自然景观;diet=不吃辣",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_029",
+    "city_name": "济南",
+    "day_count": 3,
+    "customization_requirements": "companions=情侣;elderly=没有老人;kids=没有小孩;interests=泉水,人文景观;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_030",
+    "city_name": "合肥",
+    "day_count": 2,
+    "customization_requirements": "companions=单人;interests=人文景观,美食;pace=中等;accessibility=需要轻松",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_031",
+    "city_name": "福州",
+    "day_count": 4,
+    "customization_requirements": "companions=团体;diet=不吃辣;budget=高端;interests=美食,人文景观",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_032",
+    "city_name": "宁波",
+    "day_count": 3,
+    "customization_requirements": "companions=家庭;elderly=有老人;kids=没有小孩;pace=慢节奏;interests=海滨,美食",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_033",
+    "city_name": "无锡",
+    "day_count": 2,
+    "customization_requirements": "companions=情侣;interests=人文景观,美食,摄影;pace=慢节奏",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_034",
+    "city_name": "珠海",
+    "day_count": 3,
+    "customization_requirements": "companions=朋友;interests=海滨,亲子友好;budget=中等;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_035",
+    "city_name": "敦煌",
+    "day_count": 4,
+    "customization_requirements": "companions=单人;interests=历史文化,摄影,自然景观;pace=中等;accessibility=走路少",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_036",
+    "city_name": "拉萨",
+    "day_count": 6,
+    "customization_requirements": "companions=朋友;pace=慢节奏;accessibility=需要轻松;interests=人文景观,自然景观,摄影",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_037",
+    "city_name": "西宁",
+    "day_count": 5,
+    "customization_requirements": "companions=家庭;kids=有小孩;diet=不吃辣;interests=自然景观,历史文化",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_038",
+    "city_name": "银川",
+    "day_count": 4,
+    "customization_requirements": "companions=情侣;budget=经济;interests=人文景观,美食;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_039",
+    "city_name": "兰州",
+    "day_count": 3,
+    "customization_requirements": "companions=单人;diet=爱吃辣;interests=美食,人文景观;pace=高强度",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_040",
+    "city_name": "南昌",
+    "day_count": 3,
+    "customization_requirements": "companions=朋友;elderly=没有老人;interests=历史文化,自然景观;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_041",
+    "city_name": "石家庄",
+    "day_count": 2,
+    "customization_requirements": "companions=家庭;elderly=有老人;kids=有小孩;pace=慢节奏;accessibility=走路少",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_042",
+    "city_name": "太原",
+    "day_count": 4,
+    "customization_requirements": "companions=团体;interests=历史文化,人文景观;diet=不吃辣;budget=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_043",
+    "city_name": "长春",
+    "day_count": 5,
+    "customization_requirements": "companions=情侣;kids=没有小孩;interests=冰雪,人文景观;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_044",
+    "city_name": "温州",
+    "day_count": 3,
+    "customization_requirements": "companions=朋友;budget=高端;interests=美食,海滨,摄影;pace=中等",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_045",
+    "city_name": "泉州",
+    "day_count": 4,
+    "customization_requirements": "companions=单人;interests=历史文化,美食,人文景观;diet=不吃辣",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_046",
+    "city_name": "西双版纳",
+    "day_count": 5,
+    "customization_requirements": "companions=家庭;kids=有小孩;interests=自然景观,亲子友好;pace=慢节奏",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_047",
+    "city_name": "张家界",
+    "day_count": 3,
+    "customization_requirements": "companions=朋友;pace=高强度;interests=自然景观,摄影;elderly=没有老人",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_048",
+    "city_name": "黄山",
+    "day_count": 3,
+    "customization_requirements": "companions=情侣;interests=自然景观,摄影;accessibility=需要轻松;pace=慢节奏",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_049",
+    "city_name": "威海",
+    "day_count": 4,
+    "customization_requirements": "companions=家庭;elderly=有老人;kids=没有小孩;interests=海滨,自然景观;pace=慢节奏",
+    "ground_truth_answer": null
+  },
+  {
+    "id": "tc_050",
+    "city_name": "洛阳",
+    "day_count": 3,
+    "customization_requirements": null,
+    "ground_truth_answer": null
+  }
+]

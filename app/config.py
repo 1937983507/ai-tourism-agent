@@ -15,8 +15,18 @@ class Settings(BaseSettings):
     # OpenAI 配置
     openai_api_key: str
     openai_base_url: str = "https://api.chatanywhere.org"
+    # LLM 模型名
     openai_model_name: str = "gpt-4o-mini"
     openai_max_output_tokens: int = 4000
+    # 向量检索模型名
+    openai_embedding_model_name: str = "text-embedding-3-small"
+
+    # RAG：本地 Chroma 持久化目录（与 RAG-data-processing 入库配置一致；未配置或目录不存在则跳过检索）
+    rag_enabled: bool = True
+    rag_chroma_dir: str = "./chroma_db"
+    rag_collection_name: str = "travel_docs"
+    rag_top_k: int = 5
+    rag_city_metadata_key: str = "source_city"
     
     # Checkpoint 配置
     # memory: 仅内存，重启后丢失；sqlite: 持久化到本地文件，重启后可恢复
